@@ -4,8 +4,9 @@ import { config } from "https://deno.land/x/dotenv@v2.0.0/mod.ts";
 
 import Application from "./server.ts";
 
+const prod = Deno.env.get("PROD");
 // Adds the environment variables in .env to Deno.env
-config({ export: true, safe: true });
+prod || config({ export: true, safe: true });
 
 const port = Number(Deno.env.get("PORT"));
 
