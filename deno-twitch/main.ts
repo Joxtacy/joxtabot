@@ -44,6 +44,41 @@ app.post("/twitch/webhooks/callback", async (req) => {
             event
         );
 
+        switch (subscription.type) {
+            case "stream.online": {
+                console.info("Joxtacy went live!");
+                break;
+            }
+            case "channel.channel_points_custom_reward_redemption.add": {
+                console.info("Channel points redemption", {
+                    subscription,
+                    event,
+                });
+
+                /*
+                const {
+                    id, // reward id
+                    title, // reward title
+                    prompt, // reward description
+                    cost, // reward cost
+                } = event.reward;
+                const {
+                    user_id, // user id
+                    user_login, // user login (lowercase)
+                    user_name, // user name (display name)
+                    user_input, // input for the reward
+                } = event;
+                */
+                break;
+            }
+            default: {
+                console.warn(
+                    "Unsupported subscription type",
+                    subscription.type
+                );
+            }
+        }
+
         req.respond({ status: 200, body: "OK" });
     } else {
         req.respond({ status: 403, body: "Invalid signature" });
