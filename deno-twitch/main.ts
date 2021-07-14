@@ -24,7 +24,7 @@ app.get("/hello", (req) => {
     req.respond({ status: 200, body: "Hello Deno!" });
 });
 
-app.post("/webhooks/callback", async (req) => {
+app.post("/twitch/webhooks/callback", async (req) => {
     const rawBody = await readAll(req.body);
     const decodedBody = new TextDecoder().decode(rawBody);
     const body = JSON.parse(decodedBody);
