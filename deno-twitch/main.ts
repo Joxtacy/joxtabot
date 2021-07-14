@@ -16,7 +16,7 @@ const sendOnlineNotfication = async (event: any) => {
         `https://api.twitch.tv/helix/streams?user_id=${54605357}`,
         {
             headers: {
-                Authorization: "Bearer 51eamthavtlr6rtwmqytcv3zs1chur",
+                Authorization: `Bearer ${Deno.env.get("TWITCH_APP_TOKEN")}`,
                 "Client-Id": `${Deno.env.get("TWITCH_CLIENT_ID")}`,
             },
         }
