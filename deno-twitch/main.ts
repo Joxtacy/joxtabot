@@ -11,6 +11,50 @@ const port = Number(Deno.env.get("PORT"));
 
 const app = new Application();
 
+const sendOnlineNotfication = async (event: any) => {
+    const yep = await fetch(
+        `https://api.twitch.tv/helix/streams?user_id=${54605357}`,
+        {
+            headers: {
+                Authorization: "Bearer 51eamthavtlr6rtwmqytcv3zs1chur",
+                "Client-Id": `${Deno.env.get("TWITCH_CLIENT_ID")}`,
+            },
+        }
+    );
+    const { data } = await yep.json();
+    const { title, game_name } = data[0] || {
+        title: "Le title",
+        game_name: "Le game",
+    };
+    console.log("Twitch stream info", data);
+
+    const response = await fetch("https://api.courier.com/send", {
+        method: "POST",
+        headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("COURIER_PROD_API_KEY")}`,
+        },
+        body: JSON.stringify({
+            event: "TWITCH_ONLINE",
+            recipient: "CHANNEL_GENERAL",
+            profile: {
+                discord: {
+                    channel_id: "843289296260825098",
+                },
+            },
+            data: {
+                stream_title: title,
+                stream_game: game_name,
+            },
+        }),
+    });
+    const { messageId } = await response.json();
+    console.log(
+        `Online notification for ${event.broadcaster_user_name} sent. Message ID: ${messageId}.`
+    );
+};
+
 app.use(async (req) => {
     const url = new URL(req.url, "http://localhost:3003");
     console.info(`Request: ${req.method} ${req.url} ${url.searchParams}`);
@@ -40,13 +84,14 @@ app.post("/twitch/webhooks/callback", async (req) => {
         const { event, subscription } = body;
 
         console.log(
-            `Receiving ${subscription.type} request for ${event.broadcaster_user_name}: `,
+            `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
             event
         );
 
         switch (subscription.type) {
             case "stream.online": {
                 console.info("Joxtacy went live!");
+                sendOnlineNotfication(event);
                 break;
             }
             case "channel.channel_points_custom_reward_redemption.add": {
