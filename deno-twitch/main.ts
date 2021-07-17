@@ -1,4 +1,3 @@
-// import axios from "https://cdn.skypack.dev/axios@v0.21.1";
 import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
 import { config } from "https://deno.land/x/dotenv@v2.0.0/mod.ts";
 
@@ -13,21 +12,23 @@ const port = Number(Deno.env.get("PORT"));
 const app = new Application();
 
 const sendOnlineNotfication = async (event: any) => {
-    const yep = await fetch(
-        `https://api.twitch.tv/helix/streams?user_id=${54605357}`,
-        {
-            headers: {
-                Authorization: `Bearer ${Deno.env.get("TWITCH_APP_TOKEN")}`,
-                "Client-Id": `${Deno.env.get("TWITCH_CLIENT_ID")}`,
-            },
-        }
-    );
-    const { data } = await yep.json();
-    const { title, game_name } = data[0] || {
-        title: "Le title",
-        game_name: "Le game",
-    };
-    console.log("Twitch stream info", data);
+    let title = "Le title";
+    let game_name = "Le game";
+    try {
+        const yep = await fetch(
+            `https://api.twitch.tv/helix/streams?user_id=${54605357}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${Deno.env.get("TWITCH_APP_TOKEN")}`,
+                    "Client-Id": `${Deno.env.get("TWITCH_CLIENT_ID")}`,
+                },
+            }
+        );
+        const { data } = await yep.json();
+        title = data[0].title;
+        game_name = data[0].game_name;
+        console.log("Twitch stream info", data);
+    } catch (error) {}
 
     const response = await fetch("https://api.courier.com/send", {
         method: "POST",
