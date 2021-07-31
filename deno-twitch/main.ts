@@ -13,7 +13,7 @@ const app = new Application();
 
 const sendOnlineNotfication = async (event: any) => {
     let title = "Le title";
-    let game_name = "Le game";
+    let gameName = "Le game";
     try {
         const yep = await fetch(
             `https://api.twitch.tv/helix/streams?user_id=${54605357}`,
@@ -26,9 +26,11 @@ const sendOnlineNotfication = async (event: any) => {
         );
         const { data } = await yep.json();
         title = data[0].title;
-        game_name = data[0].game_name;
+        gameName = data[0].game_name;
         console.log("Twitch stream info", data);
-    } catch (error) {}
+    } catch (_error) {
+        // noop
+    }
 
     const response = await fetch("https://api.courier.com/send", {
         method: "POST",
@@ -42,12 +44,12 @@ const sendOnlineNotfication = async (event: any) => {
             recipient: "CHANNEL_GENERAL",
             profile: {
                 discord: {
-                    channel_id: "843289296260825098",
+                    channel_id: Deno.env.get("DISCORD_CHANNEL_ID"),
                 },
             },
             data: {
                 stream_title: title,
-                stream_game: game_name,
+                stream_game: gameName,
             },
         }),
     });
