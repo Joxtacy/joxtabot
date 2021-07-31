@@ -1,5 +1,19 @@
 import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
-import { config } from "https://deno.land/x/dotenv@v2.0.0/mod.ts";
+import "https://deno.land/x/dotenv@v2.0.0/load.ts";
+import { startBot } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
+
+startBot({
+    token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
+    intents: ["Guilds", "GuildMessages"],
+    eventHandlers: {
+        ready: () => {
+            console.log("[DISCORD] Connected");
+        },
+        messageCreate: (msg) => {
+            console.log("[DISCORD] Message received", msg);
+        },
+    },
+});
 
 import Application from "./server.ts";
 
