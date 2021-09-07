@@ -42,6 +42,8 @@ startBot({
             if (msg.content === "!pling") {
                 msg.reply("You rang.");
                 msg.channel?.send("Plong!");
+            } else if (msg.content === "!joxtabot") {
+                msg.reply("I am a bot created by Joxtacy. At your service. 🙇‍♂️");
             }
         },
     },
