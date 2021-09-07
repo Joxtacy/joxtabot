@@ -10,15 +10,15 @@ startBot({
         },
         messageCreate: (msg) => {
             console.log("[DISCORD] Message received", msg);
+            if (msg.content === "!pling") {
+                msg.reply("You rang.");
+                msg.channel?.send("Plong!");
+            }
         },
     },
 });
 
 import Application from "./server.ts";
-
-const prod = Deno.env.get("PROD");
-// Adds the environment variables in .env to Deno.env
-prod || config({ export: true, safe: true });
 
 const port = Number(Deno.env.get("PORT"));
 
@@ -72,10 +72,13 @@ const sendOnlineNotfication = async (event: any) => {
     );
 };
 
-app.use(async (req) => {
-    const url = new URL(req.url, "http://localhost:3003");
-    console.info(`Request: ${req.method} ${req.url} ${url.searchParams}`);
+/*
+app.use(async (ctx, next) => {
+    console.log(`[LOGGER] At the start of the request: ${ctx}`);
+    await next();
+    console.log(`[LOGGER] At the end of the request: ${ctx}`);
 });
+*/
 
 app.get("/", (req) => {
     const html = `
