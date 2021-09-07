@@ -50,6 +50,7 @@ class Application {
             }
             */
 
+            console.log("Full request", JSON.stringify(req));
             console.log(
                 `[SERVER] Received request - method: ${method}, url: ${url}, path: ${path}`
             );
