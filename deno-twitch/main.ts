@@ -1,5 +1,4 @@
 import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
-import "https://deno.land/x/dotenv@v2.0.0/load.ts";
 import { startBot } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
 startBot({
