@@ -1,19 +1,43 @@
 import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
-import { startBot, ws } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
+import {
+    sendMessage,
+    startBot,
+    ws,
+} from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
+const joxtabotUpdatedMessage = `**Joxtabot updated**: ${
+    Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
+}`;
 startBot({
     token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
     intents: ["Guilds", "GuildMessages"],
     eventHandlers: {
         ready: () => {
             console.log("[DISCORD] Connected");
-            ws.shards.forEach((shard) => {
-                clearInterval(shard.heartbeat.intervalId);
-                ws.closeWS(shard.ws, 1000, "Cleaning up old connections");
-                console.log(`[DISCORD] Disconnected shard ${shard.id}`);
-            });
+            sendMessage(843289296260825098n, joxtabotUpdatedMessage);
         },
         messageCreate: (msg) => {
+            if (msg.isBot && msg.channelId === 843289296260825098n) {
+                if (msg.content.includes("**Joxtabot updated**")) {
+                    if (
+                        !msg.content.includes(
+                            Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
+                        )
+                    ) {
+                        ws.shards.forEach((shard) => {
+                            clearInterval(shard.heartbeat.intervalId);
+                            ws.closeWS(
+                                shard.ws,
+                                3061,
+                                "Cleaning up old connections"
+                            );
+                            console.log(
+                                `[DISCORD] Disconnected shard ${shard.id}`
+                            );
+                        });
+                    }
+                }
+            }
             console.log("[DISCORD] Message received", msg);
             if (msg.content === "!pling") {
                 msg.reply("You rang.");
