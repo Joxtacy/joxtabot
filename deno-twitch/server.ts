@@ -42,19 +42,19 @@ class Application {
         const server = serve(options);
         for await (const req of server) {
             const { method, url, headers } = req;
-            const [path] = url.split("?");
+            let [path] = url.split("?");
+            const host = headers.get("host");
 
-            headers.forEach((value, key) =>
-                console.log(`HEADER: ${key} = ${value}`)
-            );
+            if (host && url.includes(host)) {
+                path = url.split(host)[1].split("?")[0];
+            }
             /*
             for await (const middleware of this.middlewares) {
                 await middleware(req);
             }
             */
-            console.log("Full request", JSON.stringify(req));
             console.log(
-                `[SERVER] Received request - method: ${method}, url: ${url}, path: ${path}`
+                `[SERVER] Received request - method: ${method}, url: ${url}, path: ${path}, host: ${host}`
             );
             switch (method) {
                 case "GET": {
