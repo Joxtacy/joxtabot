@@ -1,5 +1,5 @@
 import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
-import { startBot } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
+import { startBot, ws } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
 startBot({
     token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
@@ -7,6 +7,11 @@ startBot({
     eventHandlers: {
         ready: () => {
             console.log("[DISCORD] Connected");
+            ws.shards.forEach((shard) => {
+                clearInterval(shard.heartbeat.intervalId);
+                ws.closeWS(shard.ws, 1000, "Cleaning up old connections");
+                console.log(`[DISCORD] Disconnected shard ${shard.id}`);
+            });
         },
         messageCreate: (msg) => {
             console.log("[DISCORD] Message received", msg);
