@@ -81,6 +81,7 @@ app.use(async (ctx, next) => {
 */
 
 app.get("/", (req) => {
+    console.log("[LOGGER] Received request to /");
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -106,6 +107,7 @@ app.get("/", (req) => {
 });
 
 app.get("/hello", (req) => {
+    console.log("[LOGGER] Received request to /hello");
     req.respond({ status: 200, body: "Hello Deno!" });
 });
 

@@ -50,6 +50,9 @@ class Application {
             }
             */
 
+            console.log(
+                `[SERVER] Received request - method: ${method}, url: ${url}, path: ${path}`
+            );
             switch (method) {
                 case "GET": {
                     if (this.getters.has(path)) {
