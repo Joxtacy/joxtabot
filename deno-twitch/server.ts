@@ -41,15 +41,17 @@ class Application {
     async listen(options: HTTPOptions) {
         const server = serve(options);
         for await (const req of server) {
-            const { method, url } = req;
+            const { method, url, headers } = req;
             const [path] = url.split("?");
 
+            headers.forEach((value, key) =>
+                console.log(`HEADER: ${key} = ${value}`)
+            );
             /*
             for await (const middleware of this.middlewares) {
                 await middleware(req);
             }
             */
-
             console.log("Full request", JSON.stringify(req));
             console.log(
                 `[SERVER] Received request - method: ${method}, url: ${url}, path: ${path}`
