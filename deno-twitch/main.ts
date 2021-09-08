@@ -1,4 +1,4 @@
-import { readAll } from "https://deno.land/std@0.101.0/io/mod.ts";
+import { readAll } from "https://deno.land/std@0.106.0/io/mod.ts";
 import {
     sendMessage,
     startBot,
