@@ -7,6 +7,9 @@ import {
     ws,
 } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
+const joxtabotDiscordChannelId = BigInt(
+    Deno.env.get("DISCORD_JOXTABOT_CHANNELID") || 0
+);
 const sessionUuid = crypto.randomUUID();
 const joxtabotUpdatedMessage = `**Joxtabot updated**:${
     Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
@@ -15,7 +18,7 @@ const joxtabotUpdatedMessage = `**Joxtabot updated**:${
 const shouldCloseConnection = (msg: DiscordenoMessage) => {
     // Could add a check to see that it is Joxtabot that sends the message by looking at msg.authorId
     const isBot = msg.isBot;
-    const hasCorrectChannelId = msg.channelId === 843289296260825098n;
+    const hasCorrectChannelId = msg.channelId === joxtabotDiscordChannelId;
     const isUpdatedMessage = msg.content.includes("**Joxtabot updated**");
     const [, sessionId] = msg.content.split("sessionId:");
     const hasValidUuid = v4.validate(sessionId);
@@ -32,7 +35,7 @@ startBot({
     eventHandlers: {
         ready: () => {
             console.log("[DISCORD] Connected");
-            sendMessage(843289296260825098n, joxtabotUpdatedMessage);
+            sendMessage(joxtabotDiscordChannelId, joxtabotUpdatedMessage);
         },
         messageCreate: (msg) => {
             if (shouldCloseConnection(msg)) {
