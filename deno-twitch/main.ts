@@ -7,6 +7,7 @@ import {
     ws,
 } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
+const joxtacyIsLiveChannelId = BigInt(Deno.env.get("DISCORD_CHANNEL_ID") || 0);
 const joxtabotDiscordChannelId = BigInt(
     Deno.env.get("DISCORD_JOXTABOT_CHANNELID") || 0
 );
@@ -83,30 +84,19 @@ const sendOnlineNotfication = async (event: any) => {
         // noop
     }
 
-    const response = await fetch("https://api.courier.com/send", {
-        method: "POST",
-        headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("COURIER_PROD_API_KEY")}`,
-        },
-        body: JSON.stringify({
-            event: "TWITCH_ONLINE",
-            recipient: "CHANNEL_GENERAL",
-            profile: {
-                discord: {
-                    channel_id: Deno.env.get("DISCORD_CHANNEL_ID"),
-                },
-            },
-            data: {
-                stream_title: title,
-                stream_game: gameName,
-            },
-        }),
-    });
-    const { messageId } = await response.json();
+    const messageContent = `
+**Hi everyone! I am live!**
+> Playing: ${gameName}
+> Title: ${title}
+https://twitch.tv/joxtacy
+`;
+
+    const discordMessage = await sendMessage(
+        joxtacyIsLiveChannelId,
+        messageContent
+    );
     console.log(
-        `Online notification for ${event.broadcaster_user_name} sent. Message ID: ${messageId}.`
+        `Stream online notification for ${event.broadcaster_user_name} sent. Message ID: ${discordMessage.id}`
     );
 };
 
