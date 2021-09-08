@@ -16,6 +16,47 @@ const joxtabotUpdatedMessage = `**Joxtabot updated**:${
     Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
 }, sessionId:${sessionUuid}`;
 
+const closeDiscordBot = () => {
+    ws.shards.forEach((shard) => {
+        clearInterval(shard.heartbeat.intervalId);
+        if (
+            shard.ws.readyState === WebSocket.OPEN ||
+            shard.ws.readyState === WebSocket.CONNECTING
+        ) {
+            ws.closeWS(shard.ws, 3061, "Cleaning up old connections");
+            console.log(`[DISCORD] Disconnected shard ${shard.id}`);
+        }
+    });
+};
+
+const startDiscordBot = () => {
+    startBot({
+        token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
+        intents: ["Guilds", "GuildMessages"],
+        eventHandlers: {
+            ready: () => {
+                console.log("[DISCORD] Connected");
+                sendMessage(joxtabotDiscordChannelId, joxtabotUpdatedMessage);
+            },
+            messageCreate: (msg) => {
+                if (shouldCloseConnection(msg)) {
+                    closeDiscordBot();
+                }
+                console.log("[DISCORD] Message received", msg);
+                if (msg.content === "!pling") {
+                    msg.reply("You rang.");
+                    // msg.channel?.send("Plong!");
+                } else if (msg.content === "!joxtabot") {
+                    msg.reply(
+                        "I am a bot created by Joxtacy. At your service. 🙇‍♂️"
+                    );
+                }
+            },
+        },
+    });
+};
+startDiscordBot();
+
 const shouldCloseConnection = (msg: DiscordenoMessage) => {
     // Could add a check to see that it is Joxtabot that sends the message by looking at msg.authorId
     const isBot = msg.isBot;
@@ -29,33 +70,6 @@ const shouldCloseConnection = (msg: DiscordenoMessage) => {
         isBot && hasCorrectChannelId && isUpdatedMessage && !hasSameSessionId
     );
 };
-
-startBot({
-    token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
-    intents: ["Guilds", "GuildMessages"],
-    eventHandlers: {
-        ready: () => {
-            console.log("[DISCORD] Connected");
-            sendMessage(joxtabotDiscordChannelId, joxtabotUpdatedMessage);
-        },
-        messageCreate: (msg) => {
-            if (shouldCloseConnection(msg)) {
-                ws.shards.forEach((shard) => {
-                    clearInterval(shard.heartbeat.intervalId);
-                    ws.closeWS(shard.ws, 3061, "Cleaning up old connections");
-                    console.log(`[DISCORD] Disconnected shard ${shard.id}`);
-                });
-            }
-            console.log("[DISCORD] Message received", msg);
-            if (msg.content === "!pling") {
-                msg.reply("You rang.");
-                msg.channel?.send("Plong!");
-            } else if (msg.content === "!joxtabot") {
-                msg.reply("I am a bot created by Joxtacy. At your service. 🙇‍♂️");
-            }
-        },
-    },
-});
 
 import Application from "./server.ts";
 
