@@ -1,13 +1,31 @@
 import { readAll } from "https://deno.land/std@0.106.0/io/mod.ts";
+import { v4 } from "https://deno.land/std@0.106.0/uuid/mod.ts";
 import {
+    DiscordenoMessage,
     sendMessage,
     startBot,
     ws,
 } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
-const joxtabotUpdatedMessage = `**Joxtabot updated**: ${
+const sessionUuid = crypto.randomUUID();
+const joxtabotUpdatedMessage = `**Joxtabot updated**:${
     Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
-}`;
+}, sessionId:${sessionUuid}`;
+
+const shouldCloseConnection = (msg: DiscordenoMessage) => {
+    // Could add a check to see that it is Joxtabot that sends the message by looking at msg.authorId
+    const isBot = msg.isBot;
+    const hasCorrectChannelId = msg.channelId === 843289296260825098n;
+    const isUpdatedMessage = msg.content.includes("**Joxtabot updated**");
+    const [, sessionId] = msg.content.split("sessionId:");
+    const hasValidUuid = v4.validate(sessionId);
+    const hasSameSessionId = hasValidUuid && sessionUuid === sessionId;
+
+    return (
+        isBot && hasCorrectChannelId && isUpdatedMessage && !hasSameSessionId
+    );
+};
+
 startBot({
     token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
     intents: ["Guilds", "GuildMessages"],
@@ -17,26 +35,12 @@ startBot({
             sendMessage(843289296260825098n, joxtabotUpdatedMessage);
         },
         messageCreate: (msg) => {
-            if (msg.isBot && msg.channelId === 843289296260825098n) {
-                if (msg.content.includes("**Joxtabot updated**")) {
-                    if (
-                        !msg.content.includes(
-                            Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
-                        )
-                    ) {
-                        ws.shards.forEach((shard) => {
-                            clearInterval(shard.heartbeat.intervalId);
-                            ws.closeWS(
-                                shard.ws,
-                                3061,
-                                "Cleaning up old connections"
-                            );
-                            console.log(
-                                `[DISCORD] Disconnected shard ${shard.id}`
-                            );
-                        });
-                    }
-                }
+            if (shouldCloseConnection(msg)) {
+                ws.shards.forEach((shard) => {
+                    clearInterval(shard.heartbeat.intervalId);
+                    ws.closeWS(shard.ws, 3061, "Cleaning up old connections");
+                    console.log(`[DISCORD] Disconnected shard ${shard.id}`);
+                });
             }
             console.log("[DISCORD] Message received", msg);
             if (msg.content === "!pling") {
