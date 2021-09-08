@@ -149,6 +149,7 @@ app.get("/", (req) => {
 });
 
 app.get("/hello", (req) => {
+    startDiscordBot(); // Restart the Discord bot
     console.log("[LOGGER] Received request to /hello");
     req.respond({ status: 200, body: "Hello Deno!" });
 });
