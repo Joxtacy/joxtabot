@@ -77,7 +77,7 @@ const port = Number(Deno.env.get("PORT"));
 
 const app = new Application();
 
-const sendOnlineNotfication = async (event: any) => {
+const sendOnlineNotification = async (event: any) => {
     let title = "Le title";
     let gameName = "Le game";
     try {
@@ -177,7 +177,7 @@ app.post("/twitch/webhooks/callback", async (req) => {
         switch (subscription.type) {
             case "stream.online": {
                 console.info("Joxtacy went live!");
-                sendOnlineNotfication(event);
+                sendOnlineNotification(event);
                 break;
             }
             case "channel.channel_points_custom_reward_redemption.add": {
