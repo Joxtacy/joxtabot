@@ -67,12 +67,12 @@ app.post("/twitch/webhooks/callback", async (req) => {
         );
 
         switch (subscription.type) {
-            case "stream.online": {
+            case TwitchEventsubSubscriptionType.STREAM_ONLINE: {
                 console.info("Joxtacy went live! Send online notification to Discord.");
                 sendOnlineNotification(event as TwitchEventsubEvent);
                 break;
             }
-            case "channel.channel_points_custom_reward_redemption.add": {
+            case TwitchEventsubSubscriptionType.CHANNEL_POINT_REDEMPTION_ADD: {
                 const channelPointsRedemptionAdd = event as ChannelPointsCustomRewardRedemptionAdd;
                 console.info(`Channel points redemption. Type: ${subscription.type}, Reward: ${channelPointsRedemptionAdd.reward.title}`);
 
