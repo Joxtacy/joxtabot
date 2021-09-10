@@ -1,13 +1,15 @@
 import { readAll } from "https://deno.land/std@0.106.0/io/mod.ts";
 import { v4 } from "https://deno.land/std@0.106.0/uuid/mod.ts";
 import {
-    DiscordenoMessage,
+    // DiscordenoMessage,
     sendMessage,
-    startBot,
-    ws,
+    // startBot,
+    // ws,
 } from "https://deno.land/x/discordeno@12.0.1/mod.ts";
 
 const joxtacyIsLiveChannelId = BigInt(Deno.env.get("DISCORD_CHANNEL_ID") || 0);
+
+/* Let's remove the online Discord bot for now. Can't get the websocket to stay open.
 const joxtabotDiscordChannelId = BigInt(
     Deno.env.get("DISCORD_JOXTABOT_CHANNELID") || 0
 );
@@ -70,6 +72,7 @@ const shouldCloseConnection = (msg: DiscordenoMessage) => {
         isBot && hasCorrectChannelId && isUpdatedMessage && !hasSameSessionId
     );
 };
+*/
 
 import Application from "./server.ts";
 
@@ -149,7 +152,7 @@ app.get("/", (req) => {
 });
 
 app.get("/hello", (req) => {
-    startDiscordBot(); // Restart the Discord bot
+    // startDiscordBot(); // Restart the Discord bot
     console.log("[LOGGER] Received request to /hello");
     req.respond({ status: 200, body: "Hello Deno!" });
 });
