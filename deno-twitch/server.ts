@@ -1,9 +1,9 @@
 import {
+    hmac,
     serve,
     HTTPOptions,
     ServerRequest,
-} from "https://deno.land/std@0.101.0/http/server.ts";
-import { hmac } from "https://deno.land/x/hmac@v2.0.1/mod.ts";
+} from "./deps.ts";
 
 const twitchSigningSecret = Deno.env.get("TWITCH_SIGNING_SECRET");
 
