@@ -1,11 +1,4 @@
-import { readAll } from "https://deno.land/std@0.106.0/io/mod.ts";
-import { v4 } from "https://deno.land/std@0.106.0/uuid/mod.ts";
-import {
-    // DiscordenoMessage,
-    sendMessage,
-    // startBot,
-    // ws,
-} from "https://deno.land/x/discordeno@12.0.1/mod.ts";
+import { readAll, sendMessage } from "./deps.ts";
 
 const joxtacyIsLiveChannelId = BigInt(Deno.env.get("DISCORD_CHANNEL_ID") || 0);
 
