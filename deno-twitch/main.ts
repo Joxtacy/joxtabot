@@ -86,6 +86,10 @@ app.post("/twitch/webhooks/callback", async (req) => {
                         // Increment database situp number
                         break;
                     }
+                    case ChannelPointCustomRewardTitle.NICE: {
+                        console.log(`Nice, ${event.user_name}. 😏`);
+                        break;
+                    }
                     default: {
                         console.warn(`Unsupported custom reward: ${channelPointsRedemptionAdd.reward.title}`);
                     }
