@@ -4,8 +4,9 @@ import { sendOnlineNotification } from "./discord.ts";
 
 import {
     ChannelPointsCustomRewardRedemptionAdd,
-    TwitchEventsubSubscriptionType,
+    ChannelPointCustomRewardTitle,
     TwitchEventsubNotification,
+    TwitchEventsubSubscriptionType,
     TwitchEventsubEvent
 } from "./twitch-types.ts";
 
@@ -74,8 +75,21 @@ app.post("/twitch/webhooks/callback", async (req) => {
             }
             case TwitchEventsubSubscriptionType.CHANNEL_POINT_REDEMPTION_ADD: {
                 const channelPointsRedemptionAdd = event as ChannelPointsCustomRewardRedemptionAdd;
-                console.info(`Channel points redemption. Type: ${subscription.type}, Reward: ${channelPointsRedemptionAdd.reward.title}`);
+                console.info(`Channel points redemption. Reward: ${channelPointsRedemptionAdd.reward.title}`);
 
+                switch (channelPointsRedemptionAdd.reward.title) {
+                    case ChannelPointCustomRewardTitle.PUSHUP_PLUS_1: {
+                        // Increment database pushup number
+                        break;
+                    }
+                    case ChannelPointCustomRewardTitle.SITUP_PLUS_1: {
+                        // Increment database situp number
+                        break;
+                    }
+                    default: {
+                        console.warn(`Unsupported custom reward: ${channelPointsRedemptionAdd.reward.title}`);
+                    }
+                }
                 break;
             }
             default: {

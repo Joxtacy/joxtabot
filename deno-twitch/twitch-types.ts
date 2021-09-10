@@ -40,25 +40,25 @@ interface ChannelPointCustomReward {
     cost: number;
     id: string;
     prompt: string;
-    title: string;
+    title: ChannelPointCustomRewardTitle;
 }
 
 export enum ChannelPointCustomRewardTitle {
-    "+1 Pushup",
-    "+1 Situp",
-    "1 min ad",
-    "2 min ad",
-    "3 min ad",
-    "Emote-only Chat",
-    "First",
-    "Hydrate!",
-    "Make me talk in Japanese",
-    "Make me talk in Swedish",
-    "Nice",
-    "Posture Check!",
-    "Streeeeeeeeeetch",
-    "Timeout",
-    // "-420", // Can't have numeric name
+    PUSHUP_PLUS_1 = "+1 Pushup",
+    SITUP_PLUS_1 = "+1 Situp",
+    AD_1_MIN = "1 min ad",
+    AD_2_MIN = "2 min ad",
+    AD_3_MIN = "3 min ad",
+    EMOTE_ONLY = "Emote-only Chat",
+    FIRST = "First",
+    HYDRATE = "Hydrate!",
+    TALK_IN_JAPANESE = "Make me talk in Japanese",
+    TALK_IN_SWEDISH = "Make me talk in Swedish",
+    NICE = "Nice",
+    POSTURE_CHECK = "Posture Check!",
+    STRETCH = "Streeeeeeeeeetch",
+    TIMEOUT = "Timeout",
+    MINUS_420 = "-420",
 }
 
 export enum TwitchEventsubSubscriptionType {
