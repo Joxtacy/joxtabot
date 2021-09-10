@@ -61,8 +61,4 @@ export enum ChannelPointCustomRewardTitle {
     // "-420", // Can't have numeric name
 }
 
-export enum TwitchEventsubSubscriptionType {
-    "channel.channel_points_custom_reward_redemption.add",
-    "stream.online"
-}
-
+export type TwitchEventsubSubscriptionType = "channel.channel_points_custom_reward_redemption.add" | "stream.online";
