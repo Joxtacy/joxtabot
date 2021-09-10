@@ -2,84 +2,12 @@ import { readAll } from "./deps.ts";
 
 import { sendOnlineNotification } from "./discord.ts";
 
-/* Let's remove the online Discord bot for now. Can't get the websocket to stay open.
-const joxtabotDiscordChannelId = BigInt(
-    Deno.env.get("DISCORD_JOXTABOT_CHANNELID") || 0
-);
-const sessionUuid = crypto.randomUUID();
-const joxtabotUpdatedMessage = `**Joxtabot updated**:${
-    Deno.env.get("DENO_DEPLOYMENT_ID") || "localhost"
-}, sessionId:${sessionUuid}`;
-
-const closeDiscordBot = () => {
-    ws.shards.forEach((shard) => {
-        clearInterval(shard.heartbeat.intervalId);
-        if (
-            shard.ws.readyState === WebSocket.OPEN ||
-            shard.ws.readyState === WebSocket.CONNECTING
-        ) {
-            ws.closeWS(shard.ws, 3061, "Cleaning up old connections");
-            console.log(`[DISCORD] Disconnected shard ${shard.id}`);
-        }
-    });
-};
-
-const startDiscordBot = () => {
-    startBot({
-        token: Deno.env.get("DISCORD_BOT_TOKEN") || "",
-        intents: ["Guilds", "GuildMessages"],
-        eventHandlers: {
-            ready: () => {
-                console.log("[DISCORD] Connected");
-                sendMessage(joxtabotDiscordChannelId, joxtabotUpdatedMessage);
-            },
-            messageCreate: (msg) => {
-                if (shouldCloseConnection(msg)) {
-                    closeDiscordBot();
-                }
-                console.log("[DISCORD] Message received", msg);
-                if (msg.content === "!pling") {
-                    msg.reply("You rang.");
-                    // msg.channel?.send("Plong!");
-                } else if (msg.content === "!joxtabot") {
-                    msg.reply(
-                        "I am a bot created by Joxtacy. At your service. 🙇‍♂️"
-                    );
-                }
-            },
-        },
-    });
-};
-startDiscordBot();
-
-const shouldCloseConnection = (msg: DiscordenoMessage) => {
-    // Could add a check to see that it is Joxtabot that sends the message by looking at msg.authorId
-    const isBot = msg.isBot;
-    const hasCorrectChannelId = msg.channelId === joxtabotDiscordChannelId;
-    const isUpdatedMessage = msg.content.includes("**Joxtabot updated**");
-    const [, sessionId] = msg.content.split("sessionId:");
-    const hasValidUuid = v4.validate(sessionId);
-    const hasSameSessionId = hasValidUuid && sessionUuid === sessionId;
-
-    return (
-        isBot && hasCorrectChannelId && isUpdatedMessage && !hasSameSessionId
-    );
-};
-*/
 
 import Application from "./server.ts";
 
 const port = Number(Deno.env.get("PORT"));
 
 const app = new Application();
-
-/*
-app.use(async (ctx, next) => {
-    console.log(`[LOGGER] At the start of the request: ${ctx}`);
-    await next();
-    console.log(`[LOGGER] At the end of the request: ${ctx}`);
-});
-*/
 
 app.get("/", (req) => {
     console.log("[LOGGER] Received request to /");
@@ -108,7 +36,6 @@ app.get("/", (req) => {
 });
 
 app.get("/hello", (req) => {
-    // startDiscordBot(); // Restart the Discord bot
     console.log("[LOGGER] Received request to /hello");
     req.respond({ status: 200, body: "Hello Deno!" });
 });
@@ -145,20 +72,6 @@ app.post("/twitch/webhooks/callback", async (req) => {
                     event,
                 });
 
-                /*
-                const {
-                    id, // reward id
-                    title, // reward title
-                    prompt, // reward description
-                    cost, // reward cost
-                } = event.reward;
-                const {
-                    user_id, // user id
-                    user_login, // user login (lowercase)
-                    user_name, // user name (display name)
-                    user_input, // input for the reward
-                } = event;
-                */
                 break;
             }
             default: {
