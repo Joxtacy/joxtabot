@@ -1,9 +1,9 @@
 import { sendMessage } from "./deps.ts";
-import { ChannelPointsCustomRewardRedemptionAdd } from "./twitch-types.ts";
+import { TwitchEventsubEvent } from "./twitch-types.ts";
 
 const joxtacyIsLiveChannelId = BigInt(Deno.env.get("DISCORD_CHANNEL_ID") || 0);
 
-export const sendOnlineNotification = async (event: ChannelPointsCustomRewardRedemptionAdd) => {
+export const sendOnlineNotification = async (event: TwitchEventsubEvent) => {
     let title = "Le title";
     let gameName = "Le game";
     try {

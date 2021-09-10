@@ -2,6 +2,12 @@ import { readAll } from "./deps.ts";
 
 import { sendOnlineNotification } from "./discord.ts";
 
+import {
+    ChannelPointsCustomRewardRedemptionAdd,
+    TwitchEventsubSubscriptionType,
+    TwitchEventsubNotification,
+    TwitchEventsubEvent
+} from "./twitch-types.ts";
 
 import Application from "./server.ts";
 
@@ -53,7 +59,7 @@ app.post("/twitch/webhooks/callback", async (req) => {
             req.respond({ status: 200, body: body.challenge });
             return;
         }
-        const { event, subscription } = body;
+        const { event, subscription } = body as TwitchEventsubNotification;
 
         console.log(
             `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
@@ -61,15 +67,16 @@ app.post("/twitch/webhooks/callback", async (req) => {
         );
 
         switch (subscription.type) {
-            case "stream.online": {
+            case TwitchEventsubSubscriptionType["stream.online"]: {
                 console.info("Joxtacy went live!");
-                sendOnlineNotification(event);
+                sendOnlineNotification(event as TwitchEventsubEvent);
                 break;
             }
-            case "channel.channel_points_custom_reward_redemption.add": {
+            case TwitchEventsubSubscriptionType["channel.channel_points_custom_reward_redemption.add"]: {
+                const channelPointsRedemptionAdd = event as ChannelPointsCustomRewardRedemptionAdd;
                 console.info("Channel points redemption", {
                     subscription,
-                    event,
+                    channelPointsRedemptionAdd,
                 });
 
                 break;

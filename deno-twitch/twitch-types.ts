@@ -22,11 +22,11 @@ export interface TwitchEventsubSubscription {
 export interface TwitchEventsubEvent {
     id: string;
     "broadcaster_user_id": string;
-    "broadcaster_user_login": string;
-    "broadcaster_user_name": string;
+    "broadcaster_user_login": string; // (lowercase)
+    "broadcaster_user_name": string; // (Display name)
     "user_id": string;
-    "user_login": string;
-    "user_name": string;
+    "user_login": string; // (lowercase)
+    "user_name": string; // (Display name)
 }
 
 export interface ChannelPointsCustomRewardRedemptionAdd extends TwitchEventsubEvent {
@@ -43,4 +43,26 @@ interface ChannelPointCustomReward {
     title: string;
 }
 
-export type TwitchEventsubSubscriptionType = "channel.channel_points_custom_reward_redemption.add" | "stream.online";
+export enum ChannelPointCustomRewardTitle {
+    "+1 Pushup",
+    "+1 Situp",
+    "1 min ad",
+    "2 min ad",
+    "3 min ad",
+    "Emote-only Chat",
+    "First",
+    "Hydrate!",
+    "Make me talk in Japanese",
+    "Make me talk in Swedish",
+    "Nice",
+    "Posture Check!",
+    "Streeeeeeeeeetch",
+    "Timeout",
+    // "-420", // Can't have numeric name
+}
+
+export enum TwitchEventsubSubscriptionType {
+    "channel.channel_points_custom_reward_redemption.add",
+    "stream.online"
+}
+
