@@ -2,8 +2,8 @@ import { listenAndServe } from "https://deno.land/std@0.107.0/http/server.ts";
 
 const PORT = `:${Deno.env.get("PORT")}`;
 
-listenAndServe(PORT, async (request) => {
-    console.info(`Server is up and running! Listening on port ${PORT}`);
+console.info(`Server is up and running! Listening on port ${PORT}`);
+await listenAndServe(PORT, async (request) => {
     const url = new URL(request.url);
     // const urlSearchParams = new URLSearchParams(url.search);
 
