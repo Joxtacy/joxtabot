@@ -12,10 +12,10 @@ listenAndServe(PORT, async (request) => {
 
     switch (url.pathname) {
         case "/herp": {
-            return new Response("derp\n");
+            return createResponse({ herp: "derp", hurr: "durr" });
         }
         case "/hello": {
-            return new Response("Hello Nerd!\n");
+            return createResponse("Hello fren!\n");
         }
         default: {
             return new Response("This is not acceptable!\n");
@@ -50,4 +50,15 @@ async function json(
     const arrBuf = await blob.arrayBuffer();
 
     return JSON.parse(new TextDecoder().decode(arrBuf));
+}
+
+function createResponse(
+    data: string | Record<string, unknown>,
+    status?: number
+): Response {
+    const init: ResponseInit = { status };
+    if (typeof data === "string") {
+        return new Response(new TextEncoder().encode(data), init);
+    }
+    return new Response(new TextEncoder().encode(JSON.stringify(data)), init);
 }
