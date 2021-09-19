@@ -33,7 +33,10 @@ function onMessageHandler(channel: string, userstate: ChatUserstate, message: st
     // If the command is known, let's execute it
     if (commandName === '!dice') {
         const num = rollDice();
-        twitchClient.say(channel, `You rolled a ${num}`);
+        twitchClient.say(
+            channel,
+            `@${userstate.username}, you rolled a ${num}`
+        );
         console.log(`* Executed ${commandName} command`);
     } else {
         console.log(`* Unknown command ${commandName}`);
