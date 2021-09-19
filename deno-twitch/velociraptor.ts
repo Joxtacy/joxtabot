@@ -11,6 +11,10 @@ export default {
             cmd: "deno run --watch main.ts",
             allow: ["net", "env", "read"],
         },
+        fmt: {
+            desc: "Format code",
+            cmd: "deno fmt --config deno.tsconfig.json",
+        },
         herp: {
             desc: "Just a test thingy",
             cmd: "deno run derp.ts",
