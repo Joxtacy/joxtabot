@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "dev": "nodemon index.js",
-        "watch": "tsc index.ts --watch",
+        "watch": "tsc *.ts --watch",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
