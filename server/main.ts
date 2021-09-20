@@ -18,7 +18,7 @@ await listenAndServe(PORT, async (request) => {
             return createResponse("Hello fren!");
         }
         default: {
-            return createResponse("This is not acceptable!", 404);
+            return createResponse("This is not acceptable!", { status: 404 });
         }
     }
 });
@@ -54,9 +54,8 @@ async function json(
 
 function createResponse(
     data: string | Record<string, unknown>,
-    status?: number
+    init?: ResponseInit
 ): Response {
-    const init: ResponseInit = { status };
     if (typeof data === "string") {
         const dataWithNewline = data.endsWith("\n") ? data : data + "\n";
         return new Response(new TextEncoder().encode(dataWithNewline), init);
