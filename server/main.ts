@@ -18,7 +18,7 @@ await listenAndServe(PORT, async (request) => {
             return createResponse("Hello fren!");
         }
         default: {
-            return new Response("This is not acceptable!\n");
+            return createResponse("This is not acceptable!", 404);
         }
     }
 });
