@@ -11,6 +11,28 @@ await listenAndServe(PORT, async (request) => {
     console.log("body", body);
 
     switch (url.pathname) {
+        case "/": {
+            const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joxtabot</title>
+</head>
+<body>
+    <h1>Welcome to Joxtabot, fren!</h1>
+    <h2>How are you doing today?</h2>
+</body>
+</html>
+            `;
+            return createResponse(html, {
+                headers: new Headers({
+                    "Content-Type": "text/html; charset=UTF-8",
+                }),
+            });
+        }
         case "/herp": {
             return createResponse({ herp: "derp", hurr: "durr" });
         }
