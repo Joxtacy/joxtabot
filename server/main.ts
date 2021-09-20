@@ -15,7 +15,7 @@ await listenAndServe(PORT, async (request) => {
             return createResponse({ herp: "derp", hurr: "durr" });
         }
         case "/hello": {
-            return createResponse("Hello fren!\n");
+            return createResponse("Hello fren!");
         }
         default: {
             return new Response("This is not acceptable!\n");
@@ -58,7 +58,8 @@ function createResponse(
 ): Response {
     const init: ResponseInit = { status };
     if (typeof data === "string") {
-        return new Response(new TextEncoder().encode(data), init);
+        const dataWithNewline = data.endsWith("\n") ? data : data + "\n";
+        return new Response(new TextEncoder().encode(dataWithNewline), init);
     }
     return new Response(new TextEncoder().encode(JSON.stringify(data)), init);
 }
