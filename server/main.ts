@@ -1,6 +1,7 @@
 import { green, yellow } from "https://deno.land/std@0.108.0/fmt/colors.ts";
 import { Application, Router } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 import { logger, timing, errorHandler, notFound } from "./middlewares.ts";
+import { verifySignature } from "./twitch/utils.ts";
 
 const PORT = Deno.env.get("PORT") || "8000";
 
@@ -27,6 +28,16 @@ router.get("/", (context) => {
 </body>
 </html>
     `;
+});
+
+router.post("/twitch/webhooks/callback", async ({ request, response }) => {
+    const body = await request.body().value; // as Twitch webhook something interface
+    const verification = verifySignature(request.headers, JSON.stringify(body));
+
+    if (verification) {
+        response.status = 200;
+        response.body = body.challenge;
+    }
 });
 
 app.use(router.routes());
