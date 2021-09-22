@@ -1,4 +1,5 @@
 import { listenAndServe } from "https://deno.land/std@0.107.0/http/server.ts";
+import { hmac } from "https://deno.land/x/hmac@v2.0.1/mod.ts";
 
 const PORT = `:${Deno.env.get("PORT")}`;
 
@@ -8,7 +9,7 @@ await listenAndServe(PORT, async (request) => {
     // const urlSearchParams = new URLSearchParams(url.search);
 
     const body = await json(request.body);
-    console.log("body", body);
+    console.log("body", JSON.parse(body ?? "null"));
 
     switch (url.pathname) {
         case "/": {
@@ -39,6 +40,79 @@ await listenAndServe(PORT, async (request) => {
         case "/hello": {
             return createResponse("Hello fren!");
         }
+        case "/twitch/webhooks/callback": {
+            const body = await json(request.body);
+
+            let twitchVerified;
+            try {
+                twitchVerified = verifyTwitchSignature(request, body);
+            } catch (error) {
+                twitchVerified = false;
+                console.error("Verification Failed horribly", error);
+            }
+            if (twitchVerified) {
+                const messageType = request.headers.get(
+                    "Twitch-Eventsub-Message-Type"
+                );
+
+                if (messageType === "webhook_callback_verification") {
+                    console.log("[TWITCH] Verifying Webhook");
+                    return createResponse(JSON.parse(body ?? "null").challenge);
+                }
+
+                const { event, subscription } = JSON.parse(body ?? "null");
+                console.log(
+                    `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
+                    event
+                );
+
+                switch (subscription.type) {
+                    case "stream.online": {
+                        console.info(
+                            "Joxtacy went live! Send online notification to Discord."
+                        );
+                        break;
+                    }
+                    case "channel.channel_points_custom_reward_redemption.add": {
+                        const channelPointsRedemptionAdd = event;
+                        console.info(
+                            `Channel points redemption. Reward: ${channelPointsRedemptionAdd.reward.title}`
+                        );
+
+                        switch (channelPointsRedemptionAdd.reward.title) {
+                            case "+1 Pushup": {
+                                // Increment database pushup number
+                                console.log("+1 Pushup");
+                                break;
+                            }
+                            case "+1 Situp": {
+                                // Increment database situp number
+                                console.log("+1 Situp");
+                                break;
+                            }
+                            case "Nice": {
+                                console.log(`Nice, ${event.user_name}. 😏`);
+                                break;
+                            }
+                            default: {
+                                console.warn(
+                                    `Unsupported custom reward: ${channelPointsRedemptionAdd.reward.title}`
+                                );
+                            }
+                        }
+                        break;
+                    }
+                    default: {
+                        console.warn(
+                            "Unsupported subscription type",
+                            subscription.type
+                        );
+                    }
+                }
+            }
+
+            return createResponse("This should be a proper response\n");
+        }
         default: {
             return createResponse("This is not acceptable!", { status: 404 });
         }
@@ -47,7 +121,7 @@ await listenAndServe(PORT, async (request) => {
 
 async function json(
     readableStream: ReadableStream<Uint8Array> | null
-): Promise<unknown> {
+): Promise<string | null> {
     if (!readableStream) {
         return null;
     }
@@ -71,7 +145,7 @@ async function json(
     const blob = await response.blob();
     const arrBuf = await blob.arrayBuffer();
 
-    return JSON.parse(new TextDecoder().decode(arrBuf));
+    return new TextDecoder().decode(arrBuf);
 }
 
 function createResponse(
@@ -83,4 +157,43 @@ function createResponse(
         return new Response(new TextEncoder().encode(dataWithNewline), init);
     }
     return new Response(new TextEncoder().encode(JSON.stringify(data)), init);
+}
+
+function verifyTwitchSignature(request: Request, body: string | null) {
+    const messageId = request.headers.get("Twitch-Eventsub-Message-Id") || "";
+    const timestamp =
+        request.headers.get("Twitch-Eventsub-Message-Timestamp") || "";
+    const messageSignature = request.headers.get(
+        "Twitch-Eventsub-Message-Signature"
+    );
+
+    const time = Math.floor(Date.now() / 1000);
+
+    if (Math.abs(time - Number(timestamp)) > 600) {
+        console.warn(
+            `Twitch Verification Failed: tiemstamp > 10 minutes. MessageId: ${messageId}`
+        );
+        throw new Error("Twitch Verification Failed: Timestamp too old");
+    }
+
+    const twitchSigningSecret = Deno.env.get("TWITCH_SIGNING_SECRET");
+
+    if (!twitchSigningSecret) {
+        console.warn("Twitch Signing Secret is empty");
+        throw new Error("Twitch Signing Secret is not set");
+    }
+
+    const computedSignature = `sha256=${hmac(
+        "sha256",
+        twitchSigningSecret,
+        messageId + timestamp + body,
+        "utf8",
+        "hex"
+    )}`;
+
+    if (messageSignature !== computedSignature) {
+        return false;
+    }
+    console.log("Twitch Verification Successful");
+    return true;
 }
