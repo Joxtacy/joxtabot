@@ -1,21 +1,28 @@
 import type { Context } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 import { isHttpError, Status } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 
-export const logger = async (ctx: Context, next: () => Promise<unknown>) => {
+const X_RESPONSE_TIME = "X-Response-Time";
+
+export const logger = async (
+    { response, request }: Context,
+    next: () => Promise<unknown>
+) => {
     await next();
-    const rt = ctx.response.headers.get("X-Response-Time");
-    console.log(`${ctx.request.method} ${ctx.request.url} - ${rt}`);
+    const rt = response.headers.get(X_RESPONSE_TIME);
+    console.log(`${request.method} ${request.url} - ${rt}`);
 };
 
-export const timing = async (ctx: Context, next: () => Promise<unknown>) => {
+export const timing = async (
+    { response }: Context,
+    next: () => Promise<unknown>
+) => {
     const start = Date.now();
     await next();
     const ms = Date.now() - start;
-    ctx.response.headers.set("X-Response-Time", `${ms}ms`);
+    response.headers.set(X_RESPONSE_TIME, `${ms}ms`);
 };
 
-export const notFound = (ctx: Context) => {
-    const { response } = ctx;
+export const notFound = ({ response }: Context) => {
     response.status = 404;
     response.type = "text/html";
     response.body = `
@@ -35,7 +42,7 @@ export const notFound = (ctx: Context) => {
 };
 
 export const errorHandler = async (
-    ctx: Context,
+    { response }: Context,
     next: () => Promise<unknown>
 ) => {
     try {
@@ -45,8 +52,8 @@ export const errorHandler = async (
         if (isHttpError(error)) {
             switch (error.status) {
                 case Status.NotFound: {
-                    ctx.response.type = "text/html";
-                    ctx.response.body = `
+                    response.type = "text/html";
+                    response.body = `
                     `;
                     break;
                 }
