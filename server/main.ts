@@ -60,6 +60,14 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                 );
                 break;
             }
+            case "+1 Pushup": {
+                // Update file with amount of pushups
+                break;
+            }
+            case "+1 Situp": {
+                // Update file with amount of situps
+                break;
+            }
             default: {
                 console.warn(`[TWITCH] Reward not supported - ${rewardTitle}`);
             }
