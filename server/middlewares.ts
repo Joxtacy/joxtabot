@@ -5,7 +5,7 @@ const X_RESPONSE_TIME = "X-Response-Time";
 
 export const logger = async (
     { response, request }: Context,
-    next: () => Promise<unknown>
+    next: () => Promise<unknown>,
 ) => {
     await next();
     const rt = response.headers.get(X_RESPONSE_TIME);
@@ -14,7 +14,7 @@ export const logger = async (
 
 export const timing = async (
     { response }: Context,
-    next: () => Promise<unknown>
+    next: () => Promise<unknown>,
 ) => {
     const start = Date.now();
     await next();
@@ -43,7 +43,7 @@ export const notFound = ({ response }: Context) => {
 
 export const errorHandler = async (
     { response }: Context,
-    next: () => Promise<unknown>
+    next: () => Promise<unknown>,
 ) => {
     try {
         await next();

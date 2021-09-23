@@ -21,13 +21,15 @@ export const verifySignature = (headers: Headers, body: string) => {
         throw new Error("[TWITCH] Verification failed: Signing Secret Missing");
     }
 
-    const computedSignature = `sha256=${hmac(
-        "sha256",
-        signingSecret,
-        messageId + timestamp + body,
-        "utf8",
-        "hex"
-    )}`;
+    const computedSignature = `sha256=${
+        hmac(
+            "sha256",
+            signingSecret,
+            messageId + timestamp + body,
+            "utf8",
+            "hex",
+        )
+    }`;
 
     return signature === computedSignature;
 };

@@ -1,6 +1,6 @@
 import { green, yellow } from "https://deno.land/std@0.108.0/fmt/colors.ts";
 import { Application, Router } from "https://deno.land/x/oak@v9.0.1/mod.ts";
-import { logger, timing, errorHandler, notFound } from "./middlewares.ts";
+import { errorHandler, logger, notFound, timing } from "./middlewares.ts";
 import { verifySignature } from "./twitch/utils.ts";
 
 const PORT = Deno.env.get("PORT") || "8000";
@@ -46,7 +46,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
 
         console.info(
             `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
-            event
+            event,
         );
 
         const rewardTitle = event.reward?.title;
@@ -56,7 +56,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                 console.log("Write to file. First");
                 Deno.writeFile(
                     "./first.txt",
-                    new TextEncoder().encode(`First: ${event.user_name}`)
+                    new TextEncoder().encode(`First: ${event.user_name}`),
                 );
                 break;
             }
