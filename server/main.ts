@@ -55,7 +55,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             case "First": {
                 console.log("Write to file. First");
                 Deno.writeFile(
-                    "./first.txt",
+                    "./obs/first.txt",
                     new TextEncoder().encode(`First: ${event.user_name}`),
                 );
                 break;
