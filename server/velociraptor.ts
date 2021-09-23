@@ -4,12 +4,12 @@ export default {
         "start-server": {
             desc: "Run Discord Joxtabot with deployctl",
             cmd: "deployctl run --watch main.ts",
-            allow: ["net", "env", "read"],
+            allow: ["net", "env", "read", "write"],
         },
         start: {
             desc: "Run Discord Joxtabot with deno",
             cmd: "deno run --watch main.ts",
-            allow: ["net", "env", "read"],
+            allow: ["net", "env", "read", "write"],
         },
         fmt: {
             desc: "Format code",

@@ -42,6 +42,29 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             return;
         }
 
+        const { event, subscription } = body; // as TwitchEventsubMessage
+
+        console.info(
+            `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
+            event
+        );
+
+        const rewardTitle = event.reward?.title;
+
+        switch (rewardTitle) {
+            case "First": {
+                console.log("Write to file. First");
+                Deno.writeFile(
+                    "./first.txt",
+                    new TextEncoder().encode(`First: ${event.user_name}`)
+                );
+                break;
+            }
+            default: {
+                console.warn(`[TWITCH] Reward not supported - ${rewardTitle}`);
+            }
+        }
+
         // Default to respond with 200/OK
         response.status = 200;
         response.body = "OK";
