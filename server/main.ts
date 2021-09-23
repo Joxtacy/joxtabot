@@ -35,8 +35,22 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
     const verification = verifySignature(request.headers, JSON.stringify(body));
 
     if (verification) {
+        const messageType = request.headers.get("Twitch-Eventsub-Message-Type");
+        if (messageType === "webhook_callback_verification") {
+            response.status = 200;
+            response.body = body.challenge;
+            return;
+        }
+
+        // Default to respond with 200/OK
         response.status = 200;
-        response.body = body.challenge;
+        response.body = "OK";
+        return;
+    } else {
+        // Twitch verification failed
+        response.status = 500;
+        response.body = "Verification failed";
+        return;
     }
 });
 
