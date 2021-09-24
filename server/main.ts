@@ -2,6 +2,7 @@ import { green, yellow } from "https://deno.land/std@0.108.0/fmt/colors.ts";
 import { Application, Router } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 import { errorHandler, logger, notFound, timing } from "./middlewares.ts";
 import { verifySignature } from "./twitch/utils.ts";
+import { writeFirst } from "./obs-utils.ts";
 
 const PORT = Deno.env.get("PORT") || "8000";
 
@@ -49,27 +50,41 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             event,
         );
 
-        const rewardTitle = event.reward?.title;
+        switch (subscription.type) {
+            case "stream.online": {
+                console.info("[TWITCH] Stream is live!");
+                writeFirst(""); // Reset 'First' when stream goes live
+                break;
+            }
+            case "channel.channel_points_custom_reward_redemption.add": {
+                const rewardTitle = event.reward?.title;
 
-        switch (rewardTitle) {
-            case "First": {
-                console.log("Write to file. First");
-                Deno.writeFile(
-                    "./obs/first.txt",
-                    new TextEncoder().encode(`First: ${event.user_name}`),
-                );
-                break;
-            }
-            case "+1 Pushup": {
-                // Update file with amount of pushups
-                break;
-            }
-            case "+1 Situp": {
-                // Update file with amount of situps
+                switch (rewardTitle) {
+                    case "First": {
+                        console.log("[TWITCH] Write to file. First");
+                        writeFirst(event.user_name);
+                        break;
+                    }
+                    case "+1 Pushup": {
+                        // Update file with amount of pushups
+                        break;
+                    }
+                    case "+1 Situp": {
+                        // Update file with amount of situps
+                        break;
+                    }
+                    default: {
+                        console.warn(
+                            `[TWITCH] Reward not supported - ${rewardTitle}`,
+                        );
+                    }
+                }
                 break;
             }
             default: {
-                console.warn(`[TWITCH] Reward not supported - ${rewardTitle}`);
+                console.warn(
+                    `[TWITCH] Unknown subscription type - ${subscription.type}`,
+                );
             }
         }
 
