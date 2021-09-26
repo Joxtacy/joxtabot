@@ -6,7 +6,7 @@ import { writeFirst } from "./obs-utils.ts";
 import TwitchBot from "./twitch/bot.ts";
 
 const twitchBot = new TwitchBot();
-twitchBot.sendPrivMsg("I am online, boiz! widepeepoHappy");
+twitchBot.sendPrivMsg("I am online, peeps! widepeepoHappy");
 
 const PORT = Deno.env.get("PORT") || "8000";
 
