@@ -16,6 +16,13 @@ class TwitchBot {
             console.log(event.data);
             console.groupEnd();
         });
+
+        this.socket.addEventListener("message", (event) => {
+            if (event.data.includes("PING :tmi.twitch.tv")) {
+                console.log("[TWITCHBOT] Sending PONG");
+                this.socket.send("PONG :tmi.twitch.tv");
+            }
+        });
     }
 
     private initTwitchConnection(resolve: () => void, _event: Event) {
