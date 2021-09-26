@@ -69,6 +69,15 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                         writeFirst(event.user_name);
                         break;
                     }
+                    case "Timeout": {
+                        console.log(
+                            `[TWITCH] Timeout user: ${event.user_login}`
+                        );
+                        twitchBot.sendPrivMsg(
+                            `/timeout ${event.user_login} 300 Because! That's why! KEKW`
+                        );
+                        break;
+                    }
                     case "+1 Pushup": {
                         // Update file with amount of pushups
                         break;
