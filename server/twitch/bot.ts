@@ -1,12 +1,8 @@
 class TwitchBot {
     private socket: WebSocket;
-    private channel: string;
-    private nick: string;
     private ready: Promise<void>;
 
-    constructor(channel = "joxtacy", nick = "joxtabot") {
-        this.channel = channel;
-        this.nick = nick;
+    constructor(private channel = "joxtacy", private nick = "joxtabot") {
         this.socket = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
         this.ready = new Promise((resolve) => {
             this.socket.onopen = this.initTwitchConnection.bind(this, resolve);
