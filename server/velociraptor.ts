@@ -6,9 +6,14 @@ export default {
             cmd: "deployctl run --watch main.ts",
             allow: ["net", "env", "read", "write"],
         },
-        start: {
-            desc: "Run Discord Joxtabot with deno",
+        dev: {
+            desc: "Start Joxtabot in dev mode",
             cmd: "deno run --watch main.ts",
+            allow: ["net", "env", "read", "write"],
+        },
+        start: {
+            desc: "Start Joxtabot",
+            cmd: "deno run main.ts",
             allow: ["net", "env", "read", "write"],
         },
         fmt: {
