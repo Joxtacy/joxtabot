@@ -1,6 +1,7 @@
 import { green, yellow } from "https://deno.land/std@0.108.0/fmt/colors.ts";
 import { Application, Router } from "https://deno.land/x/oak@v9.0.1/mod.ts";
 import { errorHandler, logger, notFound, timing } from "./middlewares.ts";
+import { getRandomTimeoutReason } from "./twitch/timeout-utils.ts";
 import { verifySignature } from "./twitch/utils.ts";
 import { writeFirst } from "./obs-utils.ts";
 import TwitchBot from "./twitch/bot.ts";
@@ -76,7 +77,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                         twitchBot.timeout(
                             event.user_login,
                             180,
-                            "Because! That's why! KEKW"
+                            getRandomTimeoutReason()
                         );
                         break;
                     }
