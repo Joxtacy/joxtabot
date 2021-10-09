@@ -73,8 +73,10 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                         console.log(
                             `[TWITCH] Timeout user: ${event.user_login}`
                         );
-                        twitchBot.sendPrivMsg(
-                            `/timeout ${event.user_login} 300 Because! That's why! KEKW`
+                        twitchBot.timeout(
+                            event.user_login,
+                            180,
+                            "Because! That's why! KEKW"
                         );
                         break;
                     }

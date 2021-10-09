@@ -41,6 +41,10 @@ class TwitchBot {
         this.socket.send(`PRIVMSG #${this.channel} :${message}`);
     }
 
+    async timeout(userName: string, seconds = 180, reason = "") {
+        await this.sendPrivMsg(`/timeout ${userName} ${seconds} ${reason}`);
+    }
+
     addMessageListener(listener: (event: MessageEvent<unknown>) => unknown) {
         this.socket.addEventListener("message", listener);
     }
