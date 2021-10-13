@@ -20,5 +20,9 @@ export default {
             desc: "Format code",
             cmd: "deno fmt --config deno.tsconfig.json",
         },
+        test: {
+            desc: "Run tests",
+            cmd: "deno test",
+        },
     },
 };
