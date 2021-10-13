@@ -1,3 +1,6 @@
+import { parseTwitchIrcMessage } from "../parser-utils.ts";
+import { TwitchIrcMessageType } from "./types.ts";
+
 class TwitchBot {
     private socket: WebSocket;
     private ready: Promise<void>;
@@ -18,6 +21,19 @@ class TwitchBot {
         });
 
         this.socket.addEventListener("message", this.handlePing);
+
+        this.socket.addEventListener("message", ({ data }) => {
+            const parsedMessage = parseTwitchIrcMessage(data);
+
+            if (parsedMessage.type === TwitchIrcMessageType.PRIVMSG) {
+                const message = parsedMessage.message;
+                if (message === "widepeepoHappy") {
+                    this.sendPrivMsg("widepeepoSad");
+                } else if (message === "catJAM") {
+                    this.sendPrivMsg("catJAM");
+                }
+            }
+        });
     }
 
     private handlePing = (event: MessageEvent) => {
@@ -51,37 +67,3 @@ class TwitchBot {
 }
 
 export default TwitchBot;
-
-/*
-const ws = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
-
-ws.addEventListener("message", (message) => {
-    console.log("[TWITCH WS] Received message:\n", message.data);
-    parseTwitchIrcMessage(message.data);
-    if (message.data.includes("PING :tmi.twitch.tv")) {
-        ws.send("PONG :tmi.twitch.tv");
-    } else if (message.data.includes("widepeepoHappy")) {
-        ws.send("PRIVMSG #joxtacy :widepeepoHappy");
-    }
-    // Example ban ws.send("PRIVMSG #joxtacy :/timeout notjoxtacy 10 because why not?");
-});
-
-const parseTwitchIrcMessage = (message: string) => {
-    const trimmedMessage = message.trim();
-
-    const privmsgRegex =
-        /\:[a-zA-Z_\d]*![a-zA-Z_\d]*@[a-zA-Z_\d]*\.tmi\.twitch\.tv\ PRIVMSG/;
-    const pingRegex = /^PING :tmi.twitch.tv$/;
-
-    if (privmsgRegex.test(trimmedMessage)) {
-        console.info("[TWITCH WS] Found PRIVMSG");
-        // private message. Example:
-        // :<user>!<user>@<user>.tmi.twitch.tv PRIVMSG #<channel> :This is a sample message
-        // :annishark!annishark@annishark.tmi.twitch.tv PRIVMSG #joxtacy :what are you counting
-    } else if (pingRegex.test(trimmedMessage)) {
-        console.info("[TWITCH WS] Found PING");
-        // PING from twitch. Example
-        // PING :tmi.twitch.tv
-    }
-};
-*/
