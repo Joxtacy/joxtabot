@@ -2,6 +2,7 @@ import type { TwitchIrcMessage } from "./twitch/types.ts";
 import { TwitchIrcMessageType } from "./twitch/types.ts";
 
 const initRegexp = /\:tmi.twitch.tv \d{3}/;
+const namesRegexp = /\:End of \/NAMES list/;
 const usernameRegexp = /([a-z0-9_]{3,})!([a-z0-9_]{3,})@([a-z0-9_]{3,})/; // match[1]
 const channelRegexp = /\#([a-z0-9_]{3,})/; // match[1]
 const tagsRegExp = /([a-z\-]*)\=([a-zA-Z0-9\_\-\/\,\#]*)(\;|\ )+/g;
@@ -16,6 +17,7 @@ const messageRegexp = /:(.*) :(.*)\r\n$/; // match[2] // won't work on multiple 
 export const parseTwitchIrcMessage = (message: string): TwitchIrcMessage => {
     // const messages = message.split("\r\n").slice(0, -1); // might use this later
     const initMessage = initRegexp.exec(message);
+    const namesMessage = namesRegexp.exec(message);
     const parsedMessage = messageRegexp.exec(message);
     const username = usernameRegexp.exec(message);
     const channel = channelRegexp.exec(message);
@@ -34,7 +36,19 @@ export const parseTwitchIrcMessage = (message: string): TwitchIrcMessage => {
     if (initMessage?.length) {
         return {
             type: TwitchIrcMessageType.INIT,
-            message: "",
+            message: null,
+            metadata: {
+                tags: null,
+                channel: null,
+                username: null,
+            },
+        };
+    }
+
+    if (namesMessage?.length) {
+        return {
+            type: TwitchIrcMessageType.NAMES,
+            message: null,
             metadata: {
                 tags: null,
                 channel: null,

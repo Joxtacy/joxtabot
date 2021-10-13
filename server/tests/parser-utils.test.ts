@@ -3,19 +3,39 @@ import { TwitchIrcMessageType, TwitchPrivmsgIrcTags } from "../twitch/types.ts";
 import { parseTwitchIrcMessage } from "../parser-utils.ts";
 
 Deno.test("Parse init message", () => {
-    const message = `:tmi.twitch.tv 001 joxtabot :Welcome, GLHF!\r\n
-:tmi.twitch.tv 002 joxtabot :Your host is tmi.twitch.tv\r\n
-:tmi.twitch.tv 003 joxtabot :This server is rather new\r\n
-:tmi.twitch.tv 004 joxtabot :-\r\n
-:tmi.twitch.tv 375 joxtabot :-\r\n
-:tmi.twitch.tv 372 joxtabot :You are in a maze of twisty passages, all alike.\r\n
-:tmi.twitch.tv 376 joxtabot :>`;
-
+    const message =
+        ":tmi.twitch.tv 001 joxtabot :Welcome, GLHF!\r\n" +
+        ":tmi.twitch.tv 002 joxtabot :Your host is tmi.twitch.tv\r\n" +
+        ":tmi.twitch.tv 003 joxtabot :This server is rather new\r\n" +
+        ":tmi.twitch.tv 004 joxtabot :-\r\n" +
+        ":tmi.twitch.tv 375 joxtabot :-\r\n" +
+        ":tmi.twitch.tv 372 joxtabot :You are in a maze of twisty passages, all alike.\r\n" +
+        ":tmi.twitch.tv 376 joxtabot :>\r\n";
     const actual = parseTwitchIrcMessage(message);
 
     const expected = {
         type: TwitchIrcMessageType.INIT,
-        message: "",
+        message: null,
+        metadata: {
+            tags: null,
+            username: null,
+            channel: null,
+        },
+    };
+
+    assertEquals(actual, expected);
+});
+
+Deno.test("Parse NAMES message", () => {
+    const message =
+        ":joxtabot.tmi.twitch.tv 353 joxtabot = #joxtacy :joxtabot\r\n" +
+        ":joxtabot.tmi.twitch.tv 366 joxtabot #joxtacy :End of /NAMES list\r\n";
+
+    const actual = parseTwitchIrcMessage(message);
+
+    const expected = {
+        type: TwitchIrcMessageType.NAMES,
+        message: null,
         metadata: {
             tags: null,
             username: null,
