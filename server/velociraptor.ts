@@ -23,6 +23,7 @@ export default {
         test: {
             desc: "Run tests",
             cmd: "deno test",
+            unstable: true,
         },
     },
 };
