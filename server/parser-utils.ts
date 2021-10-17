@@ -10,7 +10,7 @@ const messageTypeRegexp = new RegExp(
     Object.values(TwitchIrcMessageType)
         .filter((k) => typeof k === "string")
         .join("|")
-        .replaceAll("*", "\\*")
+        .replaceAll("*", "\\*"),
 );
 const messageRegexp = /:(.*) :(.*)\r\n$/; // match[2] // won't work on multiple messages
 
@@ -29,7 +29,7 @@ export const parseTwitchIrcMessage = (message: string): TwitchIrcMessage => {
         const [tag, values] = hits.split("=");
         tags.set(
             tag,
-            values.replaceAll(";", "").replaceAll(" ", "").split(",")
+            values.replaceAll(";", "").replaceAll(" ", "").split(","),
         );
     }
 

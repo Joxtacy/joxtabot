@@ -4,8 +4,7 @@ import { parseTwitchIrcMessage } from "../parser-utils.ts";
 
 Deno.test("parseTwitchIrcMessage", async (t) => {
     await t.step("Parse init message", () => {
-        const message =
-            ":tmi.twitch.tv 001 joxtabot :Welcome, GLHF!\r\n" +
+        const message = ":tmi.twitch.tv 001 joxtabot :Welcome, GLHF!\r\n" +
             ":tmi.twitch.tv 002 joxtabot :Your host is tmi.twitch.tv\r\n" +
             ":tmi.twitch.tv 003 joxtabot :This server is rather new\r\n" +
             ":tmi.twitch.tv 004 joxtabot :-\r\n" +
@@ -131,7 +130,9 @@ Deno.test("parseTwitchIrcMessage", async (t) => {
         tags.set(TwitchPrivmsgIrcTags.DISPLAY_NAME, ["Joxtacy"]);
         tags.set(TwitchPrivmsgIrcTags.EMOTES, [""]);
         tags.set(TwitchPrivmsgIrcTags.FLAGS, [""]);
-        tags.set(TwitchPrivmsgIrcTags.ID, ["84c4a516-0fdd-4995-b733-055c7cf56cec"]);
+        tags.set(TwitchPrivmsgIrcTags.ID, [
+            "84c4a516-0fdd-4995-b733-055c7cf56cec",
+        ]);
         tags.set(TwitchPrivmsgIrcTags.MOD, ["0"]);
         tags.set(TwitchPrivmsgIrcTags.ROOM_ID, ["54605357"]);
         tags.set(TwitchPrivmsgIrcTags.SUBSCRIBER, ["1"]);
@@ -152,4 +153,4 @@ Deno.test("parseTwitchIrcMessage", async (t) => {
 
         assertEquals(actual, expected);
     });
-})
+});

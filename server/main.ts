@@ -72,12 +72,12 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                     }
                     case "Timeout": {
                         console.log(
-                            `[TWITCH] Timeout user: ${event.user_login}`
+                            `[TWITCH] Timeout user: ${event.user_login}`,
                         );
                         twitchBot.timeout(
                             event.user_login,
                             180,
-                            getRandomTimeoutReason()
+                            getRandomTimeoutReason(),
                         );
                         break;
                     }
