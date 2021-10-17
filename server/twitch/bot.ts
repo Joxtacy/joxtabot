@@ -28,7 +28,7 @@ class TwitchBot {
             if (parsedMessage.type === TwitchIrcMessageType.PRIVMSG) {
                 const message = parsedMessage.message;
                 if (message === "widepeepoHappy") {
-                    this.sendPrivMsg("widepeepoSad");
+                    this.sendPrivMsg("widepeepoHappy");
                 } else if (message === "catJAM") {
                     this.sendPrivMsg("catJAM");
                 }
