@@ -22,7 +22,7 @@ export default {
         },
         test: {
             desc: "Run tests",
-            cmd: "deno test",
+            cmd: "deno test --jobs",
             unstable: true,
         },
     },
