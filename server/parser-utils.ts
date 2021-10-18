@@ -12,7 +12,7 @@ const messageTypeRegexp = new RegExp(
         .join("|")
         .replaceAll("*", "\\*"),
 );
-const messageRegexp = /:(.*) :(.*)\r\n$/; // match[2] // won't work on multiple messages
+const messageRegexp = /:.* :(.*)/; // match[1]
 
 export const parseTwitchIrcMessage = (message: string): TwitchIrcMessage => {
     // const messages = message.split("\r\n").slice(0, -1); // might use this later
@@ -62,7 +62,7 @@ export const parseTwitchIrcMessage = (message: string): TwitchIrcMessage => {
 
     return {
         type: messageType,
-        message: parsedMessage && parsedMessage[2],
+        message: parsedMessage && parsedMessage[1],
         metadata: {
             username: username && username[1],
             channel: channel && channel[1],
