@@ -5,6 +5,7 @@ import { getRandomTimeoutReason } from "./twitch/timeout-utils.ts";
 import { verifySignature } from "./twitch/utils.ts";
 import { writeFirst } from "./obs-utils.ts";
 import TwitchBot from "./twitch/bot.ts";
+import { sendOnlineNotification } from "./discord/utils.ts";
 
 const twitchBot = new TwitchBot();
 twitchBot.sendPrivMsg("I am online, peeps! widepeepoHappy");
@@ -59,6 +60,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             case "stream.online": {
                 console.info("[TWITCH] Stream is live!");
                 writeFirst(""); // Reset 'First' when stream goes live
+                sendOnlineNotification(event);
                 break;
             }
             case "channel.channel_points_custom_reward_redemption.add": {
