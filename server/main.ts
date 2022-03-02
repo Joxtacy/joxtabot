@@ -37,6 +37,28 @@ router.get("/", (context) => {
     `;
 });
 
+router.get("/ws", async (context) => {
+    if (context.isUpgradable) {
+        const socket = await context.upgrade();
+
+        socket.addEventListener("error", (error) => {
+            console.error("[SOCKET SERVER] Someting went wrong:", error);
+        });
+
+        socket.addEventListener("open", (event) => {
+            console.info(
+                "[SOCKET SERVER] Connection opened:",
+                new Date(event.timeStamp).toLocaleString()
+            );
+        });
+
+        socket.addEventListener("message", (message) => {
+            console.info("[SOCKET SERVER] Message received:", message.data);
+            socket.send(`You do be sending message, huh? ${message.data}`);
+        });
+    }
+});
+
 router.post("/twitch/webhooks/callback", async ({ request, response }) => {
     const body = await request.body().value; // as Twitch webhook something interface
     const verification = verifySignature(request.headers, JSON.stringify(body));
@@ -53,7 +75,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
 
         console.info(
             `Receiving ${subscription.type} request for ${event.broadcaster_user_name}:`,
-            event,
+            event
         );
 
         switch (subscription.type) {
@@ -74,12 +96,12 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                     }
                     case "Timeout": {
                         console.log(
-                            `[TWITCH] Timeout user: ${event.user_login}`,
+                            `[TWITCH] Timeout user: ${event.user_login}`
                         );
                         twitchBot.timeout(
                             event.user_login,
                             180,
-                            getRandomTimeoutReason(),
+                            getRandomTimeoutReason()
                         );
                         break;
                     }
@@ -93,7 +115,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                     }
                     default: {
                         console.warn(
-                            `[TWITCH] Reward not supported - ${rewardTitle}`,
+                            `[TWITCH] Reward not supported - ${rewardTitle}`
                         );
                     }
                 }
@@ -101,7 +123,7 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             }
             default: {
                 console.warn(
-                    `[TWITCH] Unknown subscription type - ${subscription.type}`,
+                    `[TWITCH] Unknown subscription type - ${subscription.type}`
                 );
             }
         }

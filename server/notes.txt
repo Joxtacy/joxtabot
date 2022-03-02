@@ -1,0 +1,7 @@
+Bot message, follower bot. Can ban by checking if first message (first-msg=1) and has a url (need parsing/regex)
+Message:
+@badge-info=;badges=;color=;display-name=szymonqer;emotes=;first-msg=1;flags=;id=def60722-f021-4b92-bde9-36aa5eccc925;mod=0;room-id=54605357;subscriber=0;tmi-sent-ts=1639230992100;turbo=0;user-id=698451062;user-type= :szymonqer!szymonqer@szymonqer.tmi.twitch.tv PRIVMSG #joxtacy :Want popularity? Buy followers  and viewers on  vk.cc/c8UQSm
+
+Raid message. Can be used to check if you got raided.
+Message:
+@badge-info=;badges=;color=#0000FF;display-name=AustrianStrawhat;emotes=;flags=;id=92a72465-2437-4b52-9fa0-5ee066ee40a9;login=austrianstrawhat;mod=0;msg-id=raid;msg-param-displayName=AustrianStrawhat;msg-param-login=austrianstrawhat;msg-param-profileImageURL=https://static-cdn.jtvnw.net/jtv_user_pictures/2b0ad1d4-a702-4c83-8eda-cfa0d97f55e4-profile_image-70x70.png;msg-param-viewerCount=2;room-id=54605357;subscriber=0;system-msg=2\sraiders\sfrom\sAustrianStrawhat\shave\sjoined!;tmi-sent-ts=1646148680400;user-id=166100114;user-type= :tmi.twitch.tv USERNOTICE #joxtacy

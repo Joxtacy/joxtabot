@@ -5,15 +5,11 @@ const joxtacyIsLiveChannelId = BigInt(
     Deno.env.get("DISCORD_JOXTACY_IS_LIVE_CHANNELID") || 0
 );
 
-const testingJoxtabotChannelId = BigInt(
-    Deno.env.get("DISCORD_TESTING_JOXTABOT_CHANNELID") || 0
-);
-
 export const sendOnlineNotification = async (
     event: Record<string, unknown>
 ) => {
-    let title = "Some good title";
-    let gameName = "Some cool game";
+    let title = "<Insert title here>";
+    let gameName = "<Insert game here>";
     try {
         const streamInfo = await getStreamInfo(54605357);
         title = streamInfo.title;
@@ -24,7 +20,7 @@ export const sendOnlineNotification = async (
     }
 
     const messageContent = `
-**Hi @everyone! I am live!**
+Hi @everyone! I am **live**!
 > Playing: ${gameName}
 > Title: ${title}
 https://twitch.tv/joxtacy

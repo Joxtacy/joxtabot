@@ -1,0 +1,10 @@
+type Command {
+  command: String!
+  message: String!
+}
+
+type Query {
+  allCommands: [Command!]
+  getCommand(command: String!): Command
+}
+

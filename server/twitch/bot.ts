@@ -25,6 +25,18 @@ class TwitchBot {
         this.socket.addEventListener("message", ({ data }) => {
             const parsedMessage = parseTwitchIrcMessage(data);
 
+            if (Deno.env.get("JOXTABOT_DEBUG") !== "") {
+                console.group("[TWITCHBOT] Parsing message");
+                console.log("===================");
+                console.log("Original Message:");
+                console.log(data);
+                console.log("===================");
+                console.log("Parsed Message:");
+                console.log(parsedMessage);
+                console.log("===================");
+                console.groupEnd();
+            }
+
             if (parsedMessage.type === TwitchIrcMessageType.PRIVMSG) {
                 const message = parsedMessage.message;
                 if (message === "widepeepoHappy") {
