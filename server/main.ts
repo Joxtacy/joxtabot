@@ -113,6 +113,12 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                         // Update file with amount of situps
                         break;
                     }
+                    case "Emote-only Chat": {
+                        // Start emote only chat. 2 min
+                        console.log("[TWITCH] Emote-only");
+                        twitchBot.emoteOnly(120);
+                        break;
+                    }
                     default: {
                         console.warn(
                             `[TWITCH] Reward not supported - ${rewardTitle}`

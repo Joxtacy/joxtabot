@@ -73,6 +73,13 @@ class TwitchBot {
         await this.sendPrivMsg(`/timeout ${userName} ${seconds} ${reason}`);
     }
 
+    async emoteOnly(seconds = 120) {
+        await this.sendPrivMsg("/emoteonly");
+        setTimeout(async () => {
+            await this.sendPrivMsg("/emoteonlyoff");
+        }, seconds * 1000);
+    }
+
     addMessageListener(listener: (event: MessageEvent<unknown>) => unknown) {
         this.socket.addEventListener("message", listener);
     }
