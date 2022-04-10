@@ -112,6 +112,10 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
                         );
                         break;
                     }
+                    case "Nice": {
+                        socketHandler.sendAll("Nice");
+                        break;
+                    }
                     case "+1 Pushup": {
                         // Update file with amount of pushups
                         break;
