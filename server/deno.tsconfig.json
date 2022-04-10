@@ -1,20 +1,20 @@
 {
-    "compilerOptions": {
-        "allowJs": true,
-        "lib": [
-            "deno.window",
-            "deno.unstable"
-        ],
-        "strict": true
-    },
-    "lint": {
-        "rules": {
-            "tags": ["recommended"]
-        }
-    },
-    "fmt": {
-        "options": {
-            "indentWidth": 4
-        }
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": [
+      "deno.window",
+      "deno.unstable"
+    ],
+    "strict": true
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
     }
+  },
+  "fmt": {
+    "options": {
+      "indentWidth": 2
+    }
+  }
 }
