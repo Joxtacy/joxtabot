@@ -6,6 +6,7 @@ import { verifySignature } from "./twitch/utils.ts";
 import { writeFirst } from "./obs-utils.ts";
 import TwitchBot from "./twitch/bot.ts";
 import { sendOnlineNotification } from "./discord/utils.ts";
+import socketHandler from "./utils/socket-handler.ts";
 
 const twitchBot = new TwitchBot();
 twitchBot.sendPrivMsg("I am online, peeps! widepeepoHappy");
@@ -56,6 +57,12 @@ router.get("/ws", async (context) => {
             console.info("[SOCKET SERVER] Message received:", message.data);
             socket.send(`You do be sending message, huh? ${message.data}`);
         });
+
+        socket.addEventListener("close", () => {
+          socketHandler.unregister(socket);
+        });
+
+        socketHandler.register(socket);
     }
 });
 
