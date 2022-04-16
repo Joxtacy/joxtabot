@@ -26,6 +26,37 @@ export const getStreamInfo = async (userId: string | number) => {
   };
 };
 
+type Seconds = number;
+
+interface TwitchOauthTokenResponse {
+  access_token: string;
+  expires_in: Seconds;
+  scope: Array<string>;
+  token_type: "bearer";
+}
+
+/*
+ * Fetches a new Bearer token for the Twitch Bot
+ */
+export const getAuthToken = async () => {
+  const url = "https://id.twitch.tv/oauth2/token";
+
+  const params = new URLSearchParams();
+  params.append("client_id", Deno.env.get("TWITCH_CLIENT_ID") || "");
+  params.append("client_secret", Deno.env.get("TWITCH_CLIENT_SECRET") || "");
+  params.append("grant_type", "client_credentials");
+  params.append("scope", "channel:manage:redemptions");
+
+  const init = {
+    method: "POST",
+  };
+
+  const request = new Request(`${url}?${params.toString()}`, init);
+  const response = await fetch(request);
+  const json = await response.json() as TwitchOauthTokenResponse;
+  return json;
+};
+
 // Insomnia:
 // OAuth client credentials flow: take the "access_token" from the response
 // and use it as a Bearer token to make requests
