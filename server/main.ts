@@ -112,6 +112,14 @@ router.post("/twitch/webhooks/callback", async ({ request, response }) => {
             );
             break;
           }
+          case "-420": {
+            socketHandler.sendAll("420");
+            break;
+          }
+          case "ded": {
+            socketHandler.sendAll("Death");
+            break;
+          }
           case "Nice": {
             socketHandler.sendAll("Nice");
             break;
