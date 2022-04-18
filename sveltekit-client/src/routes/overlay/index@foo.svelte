@@ -2,16 +2,48 @@
   import { onMount } from "svelte";
   import wsStore, { connect } from "../../stores/ws";
 
-  let nice: HTMLAudioElement = null;
+  let audioElem: HTMLAudioElement = null;
   onMount(() => {
     connect();
-    nice = new Audio("/noice.mp3");
   });
 
+  const resetAudioPlayer = (audio: HTMLAudioElement) => {
+    audio.pause();
+    audio.currentTime = 0;
+  };
+
+  const playSound = async (audio: HTMLAudioElement, source: string) => {
+    audio.src = source;
+    try {
+      await audio.play();
+    } catch (e) {
+      console.error("Error playing sound", e);
+    }
+  };
+
+  $: if ($wsStore.messages[0] === "420") {
+    if (audioElem !== null) {
+      resetAudioPlayer(audioElem);
+      playSound(audioElem, "/420blazeit.mp3");
+    }
+  }
+
+  $: if ($wsStore.messages[0] === "Death") {
+    if (audioElem !== null) {
+      resetAudioPlayer(audioElem);
+      playSound(audioElem, "/mario_death.mp3");
+    }
+  }
+
   $: if ($wsStore.messages[0] === "Nice") {
-    nice?.play();
+    if (audioElem !== null) {
+      resetAudioPlayer(audioElem);
+      playSound(audioElem, "/noice.mp3");
+    }
   }
 </script>
+
+<audio bind:this={audioElem} ></audio>
 
 <!--
 <main>
