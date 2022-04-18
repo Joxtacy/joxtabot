@@ -1,3 +1,5 @@
+type WebSocketMessage = string | ArrayBufferLike | Blob | ArrayBufferView;
+
 class SocketHandler {
   private sockets: Set<WebSocket> = new Set();
 
@@ -9,7 +11,7 @@ class SocketHandler {
     this.sockets.delete(socket);
   }
 
-  sendAll(message: string | ArrayBufferLike | Blob | ArrayBufferView) {
+  sendAll(message: WebSocketMessage) {
     this.sockets.forEach((socket) => socket.send(message));
   }
 }
