@@ -7,6 +7,14 @@
     connect();
   });
 
+  let video: HTMLVideoElement;
+  let active = false;
+  let paused: boolean;
+
+  $: if (paused) {
+    active = false;
+  }
+
   const resetAudioPlayer = (audio: HTMLAudioElement) => {
     audio.pause();
     audio.currentTime = 0;
@@ -45,6 +53,19 @@
 
 <audio bind:this={audioElem} ></audio>
 
+<video class:active bind:this={video} src="/derp.mp4" bind:paused>
+    <track kind="captions">
+</video>
+
+<style>
+    video {
+        display: none;
+    }
+
+    .active {
+        display: inline-block;
+    }
+</style>
 <!--
 <main>
   <ul>
