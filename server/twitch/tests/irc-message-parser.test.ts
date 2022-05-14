@@ -99,3 +99,13 @@ Deno.test("Parse PRIVMSG Message", async (t) => {
     assertEquals(actual, expected);
   });
 });
+
+Deno.test("Parse numeric message", () => {
+  const message = ":joxtabot.tmi.twitch.tv 353 joxtabot = #joxtacy :joxtabot";
+
+  const actual = parseMessage(message);
+
+  const expected = null;
+
+  assertEquals(actual, expected);
+});

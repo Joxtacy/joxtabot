@@ -28,7 +28,6 @@ interface Source {
   host: string;
 }
 
-/*
 const Commands = {
   CAP: "CAP",
   CLEARCHAT: "CLEARCHAT",
@@ -53,7 +52,6 @@ const Commands = {
   ["376"]: "376",
   ["421"]: "421",
 } as const;
-*/
 
 interface Command {
   command?: string;
@@ -264,25 +262,25 @@ const parseCommand = (rawCommand: string): Command | null => {
   const commandParts = rawCommand.split(" ");
 
   switch (commandParts[0]) {
-    case "JOIN":
-    case "PART":
-    case "NOTICE":
-    case "CLEARCHAT":
-    case "HOSTTARGET":
-    case "PRIVMSG": {
+    case Commands.JOIN:
+    case Commands.PART:
+    case Commands.NOTICE:
+    case Commands.CLEARCHAT:
+    case Commands.HOSTTARGET:
+    case Commands.PRIVMSG: {
       parsedCommand = {
         command: commandParts[0],
         channel: commandParts[1],
       };
       break;
     }
-    case "PING": {
+    case Commands.PING: {
       parsedCommand = {
         command: commandParts[0],
       };
       break;
     }
-    case "CAP": {
+    case Commands.CAP: {
       parsedCommand = {
         command: commandParts[0],
         isCapRequestEnabled: (commandParts[2] === "ACK"),
@@ -291,22 +289,22 @@ const parseCommand = (rawCommand: string): Command | null => {
       };
       break;
     }
-    case "GLOBALUSERSTATE": { // Included only if you request the /commands capability.
+    case Commands.GLOBALUSERSTATE: { // Included only if you request the /commands capability.
       // But it has no meaning without also including the /tags capability.
       parsedCommand = {
         command: commandParts[0],
       };
       break;
     }
-    case "USERSTATE": // Included only if you request the /commands capability.
-    case "ROOMSTATE": { // But it has no meaning without also including the /tags capability.
+    case Commands.USERSTATE: // Included only if you request the /commands capability.
+    case Commands.ROOMSTATE: { // But it has no meaning without also including the /tags capability.
       parsedCommand = {
         command: commandParts[0],
         channel: commandParts[1],
       };
       break;
     }
-    case "RECONNECT": {
+    case Commands.RECONNECT: {
       console.log(
         "The Twitch IRC server is about to terminate the connection for maintenance.",
       );
@@ -315,25 +313,25 @@ const parseCommand = (rawCommand: string): Command | null => {
       };
       break;
     }
-    case "421": {
+    case Commands["421"]: {
       console.log(`Unsupported IRC command: ${commandParts[2]}`);
       return null;
     }
-    case "001": { // Logged in (successfully authenticated).
+    case Commands["001"]: { // Logged in (successfully authenticated).
       parsedCommand = {
         command: commandParts[0],
         channel: commandParts[1],
       };
       break;
     }
-    case "002": // Ignoring all other numeric messages.
-    case "003":
-    case "004":
-    case "353": // Tells you who else is in the chat room you're joining.
-    case "366":
-    case "372":
-    case "375":
-    case "376": {
+    case Commands["002"]: // Ignoring all other numeric messages.
+    case Commands["003"]:
+    case Commands["004"]:
+    case Commands["353"]: // Tells you who else is in the chat room you're joining.
+    case Commands["366"]:
+    case Commands["372"]:
+    case Commands["375"]:
+    case Commands["376"]: {
       console.log(`numeric message: ${commandParts[0]}`);
       return null;
     }
