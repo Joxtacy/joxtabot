@@ -83,7 +83,6 @@
                 }
             }
         }
-        console.log("PIECES", pieces);
     });
 
     let spin = 0;
@@ -122,11 +121,13 @@
     shadows
 >
 
-    {#each pieces as { geometry, material, position }}
-        <SC.Mesh {geometry} {material} {position} />
-    {/each}
+    <SC.Group rotation={[0, spin, 0]}>
+        {#each pieces as { geometry, material, position }}
+            <SC.Mesh {geometry} {material} {position} />
+        {/each}
+    </SC.Group>
 
-    <SC.PerspectiveCamera position={[5, 5, 5]} />
+    <SC.PerspectiveCamera position={[3, 5, 10]} />
     <!-- <SC.OrthographicCamera position={[1, 1, 6]} /> -->
     <SC.AmbientLight intensity={0.6} />
     <SC.DirectionalLight intensity={0.6} position={[-2, 3, 2]} shadow={{ mapSize: [2048, 2048]}} />
