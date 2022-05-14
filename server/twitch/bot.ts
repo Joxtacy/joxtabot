@@ -1,5 +1,5 @@
-import { parseTwitchIrcMessage } from "../parser-utils.ts";
 import { TwitchIrcMessageType } from "./types.ts";
+import { parseMessage } from "./irc-message-parser.ts";
 
 class TwitchBot {
   private socket: WebSocket;
@@ -23,7 +23,7 @@ class TwitchBot {
     this.socket.addEventListener("message", this.handlePing);
 
     this.socket.addEventListener("message", ({ data }) => {
-      const parsedMessage = parseTwitchIrcMessage(data);
+      const parsedMessage = parseMessage(data);
 
       if (Deno.env.get("JOXTABOT_DEBUG") !== "") {
         console.group("[TWITCHBOT] Parsing message");
@@ -37,8 +37,8 @@ class TwitchBot {
         console.groupEnd();
       }
 
-      if (parsedMessage.type === TwitchIrcMessageType.PRIVMSG) {
-        const message = parsedMessage.message;
+      if (parsedMessage?.command?.command === TwitchIrcMessageType.PRIVMSG) {
+        const message = parsedMessage.parameters;
         if (message?.includes("widepeepoHappy")) {
           this.sendPrivMsg("widepeepoHappy");
         } else if (message?.includes("catJAM")) {
