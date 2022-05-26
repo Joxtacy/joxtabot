@@ -65,33 +65,37 @@ mod tests {
 
     #[test]
     fn test_parse_tags() {
-        let message = "@badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff :petsgomoo!petsgomoo@petsgomoo.tmi.twitch.tv PRIVMSG #petsgomoo :DansGame";
+        let message = "@badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff";
 
         let actual = parse_tags(message);
 
-        let expected_tags = Tags {
-            badges: vec![Badges::STAFF(1), Badges::BROADCASTER(1), Badges::TURBO(1)],
-            color: String::from("#FF0000"),
-            display_name: String::from("PetsgomOO"),
-            emote_only: true,
-            emotes: vec![Emote {
-                id: 33,
-                positions: vec![TextPosition {
-                    start_index: 0,
-                    end_index: 7,
-                }],
+        let mut expected_tags = vec![];
+        expected_tags.push(Tag::Badges(vec![
+            Badge::STAFF(1),
+            Badge::BROADCASTER(1),
+            Badge::TURBO(1),
+        ]));
+        expected_tags.push(Tag::Color(String::from("#FF0000")));
+        expected_tags.push(Tag::DisplayName(String::from("PetsgomOO")));
+        expected_tags.push(Tag::EmoteOnly(true));
+        expected_tags.push(Tag::Emotes(vec![Emote {
+            id: 33,
+            positions: vec![TextPosition {
+                start_index: 0,
+                end_index: 7,
             }],
-            emote_sets: vec![],
-            followers_only: false,
-            id: String::from("c285c9ed-8b1b-4702-ae1c-c64d76cc74ef"),
-            r#mod: false,
-            room_id: String::from("81046256"),
-            subscriber: false,
-            turbo: false,
-            tmi_sent_ts: String::from("1550868292494"),
-            user_id: String::from("81046256"),
-            user_type: UserType::Staff,
-        };
+        }]));
+        expected_tags.push(Tag::Unknown);
+        expected_tags.push(Tag::Id(String::from(
+            "c285c9ed-8b1b-4702-ae1c-c64d76cc74ef",
+        )));
+        expected_tags.push(Tag::Mod(false));
+        expected_tags.push(Tag::RoomId(String::from("81046256")));
+        expected_tags.push(Tag::Subscriber(false));
+        expected_tags.push(Tag::Turbo(false));
+        expected_tags.push(Tag::TmiSentTs(String::from("1550868292494")));
+        expected_tags.push(Tag::UserId(String::from("81046256")));
+        expected_tags.push(Tag::UserType(UserType::Staff));
 
         assert_eq!(actual, expected_tags);
     }
@@ -221,7 +225,7 @@ pub enum Commands {
 
 // BADGE(version)
 #[derive(PartialEq, Debug)]
-pub enum Badges {
+pub enum Badge {
     ADMIN(usize),
     BITS(usize),
     BROADCASTER(usize),
@@ -266,22 +270,23 @@ pub enum UserType {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Tags {
-    badges: Vec<Badges>,
-    color: String,
-    display_name: String, // display-name
-    emote_only: bool,     // emote-only
-    followers_only: bool, // followers-only
-    emotes: Vec<Emote>,
-    emote_sets: Vec<usize>,
-    id: String,
-    r#mod: bool,     // mod
-    room_id: String, // room-id
-    subscriber: bool,
-    turbo: bool,
-    tmi_sent_ts: String, // tmi-sent-ts
-    user_id: String,     // user-id
-    user_type: UserType, // user-type
+pub enum Tag {
+    Badges(Vec<Badge>),
+    Color(String),
+    DisplayName(String),
+    EmoteOnly(bool),
+    FollowersOnly(bool),
+    Emotes(Vec<Emote>),
+    EmoteSets(Vec<usize>),
+    Id(String),
+    Mod(bool),
+    RoomId(String),
+    Subscriber(bool),
+    Turbo(bool),
+    TmiSentTs(String),
+    UserId(String),
+    UserType(UserType),
+    Unknown,
 }
 
 #[derive(PartialEq, Debug)]
@@ -291,7 +296,7 @@ pub struct Parameters {
 
 #[derive(PartialEq, Debug)]
 pub struct ParsedTwitchMessage {
-    pub tags: Option<Tags>,
+    pub tags: Vec<Tag>,
     pub source: Option<Source>,
     pub command: Commands,
     pub parameters: Option<Parameters>,
@@ -303,7 +308,7 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
 
     // Get the tags component
 
-    if &message[..idx + 1] == "@" {
+    let tags = if &message[..idx + 1] == "@" {
         // Message has tags
         let end_index = message
             .find(' ')
@@ -312,7 +317,10 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
         let raw_tags = &message[1..end_index];
 
         idx = end_index + 1;
-    }
+        parse_tags(raw_tags)
+    } else {
+        vec![]
+    };
 
     let message = &message[idx..];
 
@@ -365,7 +373,7 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
     };
 
     ParsedTwitchMessage {
-        tags: None,
+        tags,
         bot_command,
         command,
         parameters,
@@ -373,8 +381,8 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
     }
 }
 
-fn parse_badges(raw_badges: &str) -> Vec<Badges> {
-    let mut badges: Vec<Badges> = vec![];
+fn parse_badges(raw_badges: &str) -> Vec<Badge> {
+    let mut badges: Vec<Badge> = vec![];
 
     let split_badges = raw_badges.split(',');
 
@@ -386,20 +394,18 @@ fn parse_badges(raw_badges: &str) -> Vec<Badges> {
 
         let badge_version = badge_version.unwrap_or(0);
         let badge = match badge_name {
-            "admin" => Badges::ADMIN(badge_version),
-            "bits" => Badges::BITS(badge_version),
-            "broadcaster" => Badges::BROADCASTER(badge_version),
-            "moderator" => Badges::MODERATOR(badge_version),
-            "staff" => Badges::STAFF(badge_version),
-            "subscriber" => Badges::SUBSCRIBER(badge_version),
-            "turbo" => Badges::TURBO(badge_version),
-            "vip" => Badges::VIP(badge_version),
-            _ => Badges::UNKNOWN,
+            "admin" => Badge::ADMIN(badge_version),
+            "bits" => Badge::BITS(badge_version),
+            "broadcaster" => Badge::BROADCASTER(badge_version),
+            "moderator" => Badge::MODERATOR(badge_version),
+            "staff" => Badge::STAFF(badge_version),
+            "subscriber" => Badge::SUBSCRIBER(badge_version),
+            "turbo" => Badge::TURBO(badge_version),
+            "vip" => Badge::VIP(badge_version),
+            _ => Badge::UNKNOWN,
         };
         badges.push(badge);
     }
-
-    println!("BADGES: {:?}", badges);
 
     badges
 }
@@ -450,7 +456,6 @@ fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
         emotes.push(emote);
     }
 
-    println!("EMOTES: {:?}", emotes);
     emotes
 }
 
@@ -465,41 +470,36 @@ fn parse_emote_sets(raw_emote_sets: &str) -> Vec<usize> {
         emote_sets.push(emote_set);
     }
 
-    println!("EMOTE-SETS: {:?}", emote_sets);
     emote_sets
 }
 
-fn parse_tags(raw_tags: &str) -> Tags {
+fn parse_tags(raw_tags: &str) -> Vec<Tag> {
     let raw_tags = &raw_tags[1..];
     let parsed_tags = raw_tags.split(';');
 
+    let mut tags: Vec<Tag> = vec![];
+
     for parsed_tag in parsed_tags {
-        println!("parsed_tag: {}", parsed_tag);
         let mut split_tag = parsed_tag.split('=');
 
         let tag_key = split_tag.next().expect("Should contain at least a key");
         let tag_value = split_tag.next();
 
-        match tag_key {
+        let tag = match tag_key {
             "badges" | "badge-info" => match tag_value {
                 Some(value) => {
-                    parse_badges(value);
+                    let badges = parse_badges(value);
+                    Tag::Badges(badges)
                 }
-                None => (),
+                None => Tag::Badges(vec![]),
             },
             "color" => match tag_value {
-                Some(value) => {
-                    let color = value;
-                    println!("COLOR: {}", color);
-                }
-                None => (),
+                Some(value) => Tag::Color(value.to_string()),
+                None => Tag::Color(String::from("")),
             },
             "display-name" => match tag_value {
-                Some(value) => {
-                    let display_name = value;
-                    println!("DISPLAY-NAME: {}", display_name);
-                }
-                None => (),
+                Some(value) => Tag::DisplayName(value.to_string()),
+                None => Tag::DisplayName(String::from("")),
             },
             "emote-only" => match tag_value {
                 Some(value) => {
@@ -507,28 +507,27 @@ fn parse_tags(raw_tags: &str) -> Tags {
                         "1" => true,
                         _ => false,
                     };
-                    println!("EMOTE-ONLY: {}", emote_only);
+                    Tag::EmoteOnly(emote_only)
                 }
-                None => (),
+                None => Tag::EmoteOnly(false),
             },
             "emotes" => match tag_value {
                 Some(value) => {
-                    parse_emotes(value);
+                    let emotes = parse_emotes(value);
+                    Tag::Emotes(emotes)
                 }
-                None => (),
+                None => Tag::Emotes(vec![]),
             },
             "emote-sets" => match tag_value {
                 Some(value) => {
-                    parse_emote_sets(value);
+                    let emote_sets = parse_emote_sets(value);
+                    Tag::EmoteSets(emote_sets)
                 }
-                None => (),
+                None => Tag::EmoteSets(vec![]),
             },
             "id" => match tag_value {
-                Some(value) => {
-                    let id = value;
-                    println!("ID: {}", id);
-                }
-                None => (),
+                Some(value) => Tag::Id(value.to_string()),
+                None => Tag::Id(String::from("0")),
             },
             "mod" => match tag_value {
                 Some(value) => {
@@ -536,78 +535,61 @@ fn parse_tags(raw_tags: &str) -> Tags {
                         "1" => true,
                         _ => false,
                     };
-                    println!("MOD: {}", r#mod);
+                    Tag::Mod(r#mod)
                 }
-                None => (),
+                None => Tag::Mod(false),
             },
             "room-id" => match tag_value {
-                Some(value) => {
-                    let room_id = value.parse::<usize>().expect("Should be an integer");
-                    println!("ROOM-ID: {}", room_id);
-                }
-                None => (),
+                Some(value) => Tag::RoomId(value.to_string()),
+                None => Tag::RoomId(String::from("0")),
             },
             "subscriber" => match tag_value {
                 Some(value) => {
-                    let subscriber = value.parse::<usize>().expect("Should be an integer");
-                    println!("SUBSCRIBER: {}", subscriber);
+                    let subscriber = match value {
+                        "1" => true,
+                        _ => false,
+                    };
+                    Tag::Subscriber(subscriber)
                 }
-                None => (),
+                None => Tag::Subscriber(false),
             },
             "turbo" => match tag_value {
                 Some(value) => {
-                    let turbo = value.parse::<usize>().expect("Should be an integer");
-                    println!("TURBO: {}", turbo);
+                    let turbo = match value {
+                        "1" => true,
+                        _ => false,
+                    };
+                    Tag::Turbo(turbo)
                 }
-                None => (),
+                None => Tag::Turbo(false),
             },
             "tmi-sent-ts" => match tag_value {
-                Some(value) => {
-                    let tmi_sent_ts = value;
-                    println!("TMI-SENT-TS: {}", tmi_sent_ts);
-                }
-                None => (),
+                Some(value) => Tag::TmiSentTs(value.to_string()),
+                None => Tag::TmiSentTs(String::from("0")),
             },
             "user-id" => match tag_value {
-                Some(value) => {
-                    let user_id = value;
-                    println!("USER-ID: {}", user_id);
-                }
-                None => (),
+                Some(value) => Tag::UserId(value.to_string()),
+                None => Tag::UserId(String::from("0")),
             },
             "user-type" => match tag_value {
                 Some(value) => {
-                    let user_type = match value {
+                    let user_type = match value.trim() {
                         "admin" => UserType::Admin,
                         "global_mod" => UserType::GlobalMod,
                         "staff" => UserType::Staff,
                         _ => UserType::Normal,
                     };
-                    println!("USER-TYPE: {:?}", user_type);
+                    Tag::UserType(user_type)
                 }
-                None => (),
+                None => Tag::UserType(UserType::Normal),
             },
-            _ => (),
-        }
+            _ => Tag::Unknown,
+        };
+
+        tags.push(tag);
     }
 
-    Tags {
-        badges: vec![],
-        color: String::from("#b000b5"),
-        display_name: String::from("Display-Name"),
-        emote_only: false,
-        emote_sets: vec![],
-        followers_only: false,
-        emotes: vec![],
-        id: String::from("id"),
-        r#mod: false,
-        room_id: String::from("room-id"),
-        subscriber: false,
-        turbo: false,
-        tmi_sent_ts: String::from("The UNIX timestamp"),
-        user_id: String::from("user-id"),
-        user_type: UserType::Normal,
-    }
+    tags
 }
 
 fn parse_source(raw_source: &str) -> Source {
@@ -632,12 +614,6 @@ fn parse_parameters(raw_parameters: &str) -> Parameters {
     let split_params = raw_parameters.split(" ");
     let parameters: Vec<String> = split_params.map(|param| String::from(param)).collect();
     Parameters { parameters }
-}
-
-#[derive(Debug)]
-struct CommandCommand {
-    command: String,
-    channel: Option<String>,
 }
 
 fn parse_command(raw_command: &str) -> Commands {
