@@ -4,13 +4,65 @@ use std::collections::HashMap;
 mod tests {
     use super::*;
 
+    fn create_tags() -> HashMap<String, Tag> {
+        let mut tags = HashMap::new();
+
+        tags.insert(
+            String::from("badges"),
+            Tag::Badges(vec![
+                Badge::STAFF(1),
+                Badge::BROADCASTER(1),
+                Badge::TURBO(1),
+            ]),
+        );
+        tags.insert(String::from("color"), Tag::Color(String::from("#FF0000")));
+        tags.insert(
+            String::from("display-name"),
+            Tag::DisplayName(String::from("PetsgomOO")),
+        );
+        tags.insert(String::from("emote-only"), Tag::EmoteOnly(true));
+        tags.insert(
+            String::from("emotes"),
+            Tag::Emotes(vec![Emote {
+                id: 33,
+                positions: vec![TextPosition {
+                    start_index: 0,
+                    end_index: 7,
+                }],
+            }]),
+        );
+        tags.insert(String::from("flags"), Tag::Unknown);
+        tags.insert(
+            String::from("id"),
+            Tag::Id(String::from("c285c9ed-8b1b-4702-ae1c-c64d76cc74ef")),
+        );
+        tags.insert(String::from("mod"), Tag::Mod(false));
+        tags.insert(
+            String::from("room-id"),
+            Tag::RoomId(String::from("81046256")),
+        );
+        tags.insert(String::from("subscriber"), Tag::Subscriber(false));
+        tags.insert(String::from("turbo"), Tag::Turbo(false));
+        tags.insert(
+            String::from("tmi-sent-ts"),
+            Tag::TmiSentTs(String::from("1550868292494")),
+        );
+        tags.insert(
+            String::from("user-id"),
+            Tag::UserId(String::from("81046256")),
+        );
+        tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
+
+        tags
+    }
+
     #[test]
     fn ping_has_command_component() {
         let message = "PING :tmi.twitch.tv";
         let result = parse_message(message);
 
         let actual_command = result.command;
-        let expected_command = Commands::PING;
+        let expected_command = Command::PING;
         assert_eq!(actual_command, expected_command);
     }
 
@@ -22,7 +74,7 @@ mod tests {
 
         let result = parse_message(message);
 
-        let expected_command = Commands::PRIVMSG(String::from("#lovingt3s"));
+        let expected_command = Command::PRIVMSG(String::from("#lovingt3s"));
 
         let expected_bot_command = BotCommand {
             command: String::from("dilly"),
@@ -59,64 +111,37 @@ mod tests {
     fn message_with_tags() {
         let message = "@badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff :petsgomoo!petsgomoo@petsgomoo.tmi.twitch.tv PRIVMSG #petsgomoo :DansGame";
 
-        let result = parse_message(message);
+        let actual = parse_message(message);
 
-        // TODO: Fix this test
-        panic!("IMPLEMENT ME!");
+        let expected_tags = create_tags();
+        let expected_source = Source {
+            nick: Some(String::from("petsgomoo")),
+            host: String::from("petsgomoo@petsgomoo.tmi.twitch.tv"),
+        };
+        let expected_command = Command::PRIVMSG(String::from("#petsgomoo"));
+        let expected_bot_command: Option<BotCommand> = None;
+        let expected_parameters = Parameters {
+            parameters: vec![String::from("DansGame")],
+        };
+
+        let expected_parsed_message = ParsedTwitchMessage {
+            tags: expected_tags,
+            source: Some(expected_source),
+            command: expected_command,
+            bot_command: expected_bot_command,
+            parameters: Some(expected_parameters),
+        };
+
+        assert_eq!(actual, expected_parsed_message);
     }
 
     #[test]
     fn test_parse_tags() {
-        let message = "@badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff";
+        let message = "badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff";
 
         let actual = parse_tags(message);
 
-        let mut expected_tags = HashMap::new();
-        expected_tags.insert(
-            String::from("badges"),
-            Tag::Badges(vec![
-                Badge::STAFF(1),
-                Badge::BROADCASTER(1),
-                Badge::TURBO(1),
-            ]),
-        );
-        expected_tags.insert(String::from("color"), Tag::Color(String::from("#FF0000")));
-        expected_tags.insert(
-            String::from("display-name"),
-            Tag::DisplayName(String::from("PetsgomOO")),
-        );
-        expected_tags.insert(String::from("emote-only"), Tag::EmoteOnly(true));
-        expected_tags.insert(
-            String::from("emotes"),
-            Tag::Emotes(vec![Emote {
-                id: 33,
-                positions: vec![TextPosition {
-                    start_index: 0,
-                    end_index: 7,
-                }],
-            }]),
-        );
-        expected_tags.insert(String::from("flags"), Tag::Unknown);
-        expected_tags.insert(
-            String::from("id"),
-            Tag::Id(String::from("c285c9ed-8b1b-4702-ae1c-c64d76cc74ef")),
-        );
-        expected_tags.insert(String::from("mod"), Tag::Mod(false));
-        expected_tags.insert(
-            String::from("room-id"),
-            Tag::RoomId(String::from("81046256")),
-        );
-        expected_tags.insert(String::from("subscriber"), Tag::Subscriber(false));
-        expected_tags.insert(String::from("turbo"), Tag::Turbo(false));
-        expected_tags.insert(
-            String::from("tmi-sent-ts"),
-            Tag::TmiSentTs(String::from("1550868292494")),
-        );
-        expected_tags.insert(
-            String::from("user-id"),
-            Tag::UserId(String::from("81046256")),
-        );
-        expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
+        let expected_tags = create_tags();
 
         assert_eq!(actual, expected_tags);
     }
@@ -143,7 +168,7 @@ mod tests {
 
             let result = parse_command(message);
 
-            let expected_command = Commands::PRIVMSG(String::from("#lovingt3s"));
+            let expected_command = Command::PRIVMSG(String::from("#lovingt3s"));
 
             assert_eq!(result, expected_command);
         }
@@ -154,7 +179,7 @@ mod tests {
 
             let result = parse_command(message);
 
-            let expected_command = Commands::PING;
+            let expected_command = Command::PING;
 
             assert_eq!(result, expected_command);
         }
@@ -227,7 +252,7 @@ mod tests {
 }
 
 #[derive(PartialEq, Debug)]
-pub enum Commands {
+pub enum Command {
     JOIN(String),
     PART(String),
     NOTICE(String),
@@ -319,7 +344,7 @@ pub struct Parameters {
 pub struct ParsedTwitchMessage {
     pub tags: HashMap<String, Tag>,
     pub source: Option<Source>,
-    pub command: Commands,
+    pub command: Command,
     pub parameters: Option<Parameters>,
     pub bot_command: Option<BotCommand>,
 }
@@ -495,7 +520,6 @@ fn parse_emote_sets(raw_emote_sets: &str) -> Vec<usize> {
 }
 
 fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
-    let raw_tags = &raw_tags[1..];
     let parsed_tags = raw_tags.split(';');
 
     let mut tags: HashMap<String, Tag> = HashMap::new();
@@ -637,18 +661,18 @@ fn parse_parameters(raw_parameters: &str) -> Parameters {
     Parameters { parameters }
 }
 
-fn parse_command(raw_command: &str) -> Commands {
+fn parse_command(raw_command: &str) -> Command {
     let mut command_parts = raw_command.split(' ');
 
     let command = command_parts.next().expect("This should be the command");
 
     match command {
-        "PING" => Commands::PING,
+        "PING" => Command::PING,
         "PRIVMSG" => {
             let channel = command_parts.next().expect("This should exist");
-            Commands::PRIVMSG(channel.to_string())
+            Command::PRIVMSG(channel.to_string())
         }
-        _ => Commands::UNSUPPORTED,
+        _ => Command::UNSUPPORTED,
     }
 }
 
