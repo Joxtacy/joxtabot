@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,33 +71,52 @@ mod tests {
 
         let actual = parse_tags(message);
 
-        let mut expected_tags = vec![];
-        expected_tags.push(Tag::Badges(vec![
-            Badge::STAFF(1),
-            Badge::BROADCASTER(1),
-            Badge::TURBO(1),
-        ]));
-        expected_tags.push(Tag::Color(String::from("#FF0000")));
-        expected_tags.push(Tag::DisplayName(String::from("PetsgomOO")));
-        expected_tags.push(Tag::EmoteOnly(true));
-        expected_tags.push(Tag::Emotes(vec![Emote {
-            id: 33,
-            positions: vec![TextPosition {
-                start_index: 0,
-                end_index: 7,
-            }],
-        }]));
-        expected_tags.push(Tag::Unknown);
-        expected_tags.push(Tag::Id(String::from(
-            "c285c9ed-8b1b-4702-ae1c-c64d76cc74ef",
-        )));
-        expected_tags.push(Tag::Mod(false));
-        expected_tags.push(Tag::RoomId(String::from("81046256")));
-        expected_tags.push(Tag::Subscriber(false));
-        expected_tags.push(Tag::Turbo(false));
-        expected_tags.push(Tag::TmiSentTs(String::from("1550868292494")));
-        expected_tags.push(Tag::UserId(String::from("81046256")));
-        expected_tags.push(Tag::UserType(UserType::Staff));
+        let mut expected_tags = HashMap::new();
+        expected_tags.insert(
+            String::from("badges"),
+            Tag::Badges(vec![
+                Badge::STAFF(1),
+                Badge::BROADCASTER(1),
+                Badge::TURBO(1),
+            ]),
+        );
+        expected_tags.insert(String::from("color"), Tag::Color(String::from("#FF0000")));
+        expected_tags.insert(
+            String::from("display-name"),
+            Tag::DisplayName(String::from("PetsgomOO")),
+        );
+        expected_tags.insert(String::from("emote-only"), Tag::EmoteOnly(true));
+        expected_tags.insert(
+            String::from("emotes"),
+            Tag::Emotes(vec![Emote {
+                id: 33,
+                positions: vec![TextPosition {
+                    start_index: 0,
+                    end_index: 7,
+                }],
+            }]),
+        );
+        expected_tags.insert(String::from("flags"), Tag::Unknown);
+        expected_tags.insert(
+            String::from("id"),
+            Tag::Id(String::from("c285c9ed-8b1b-4702-ae1c-c64d76cc74ef")),
+        );
+        expected_tags.insert(String::from("mod"), Tag::Mod(false));
+        expected_tags.insert(
+            String::from("room-id"),
+            Tag::RoomId(String::from("81046256")),
+        );
+        expected_tags.insert(String::from("subscriber"), Tag::Subscriber(false));
+        expected_tags.insert(String::from("turbo"), Tag::Turbo(false));
+        expected_tags.insert(
+            String::from("tmi-sent-ts"),
+            Tag::TmiSentTs(String::from("1550868292494")),
+        );
+        expected_tags.insert(
+            String::from("user-id"),
+            Tag::UserId(String::from("81046256")),
+        );
+        expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
 
         assert_eq!(actual, expected_tags);
     }
@@ -296,7 +317,7 @@ pub struct Parameters {
 
 #[derive(PartialEq, Debug)]
 pub struct ParsedTwitchMessage {
-    pub tags: Vec<Tag>,
+    pub tags: HashMap<String, Tag>,
     pub source: Option<Source>,
     pub command: Commands,
     pub parameters: Option<Parameters>,
@@ -319,7 +340,7 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
         idx = end_index + 1;
         parse_tags(raw_tags)
     } else {
-        vec![]
+        HashMap::new()
     };
 
     let message = &message[idx..];
@@ -473,11 +494,11 @@ fn parse_emote_sets(raw_emote_sets: &str) -> Vec<usize> {
     emote_sets
 }
 
-fn parse_tags(raw_tags: &str) -> Vec<Tag> {
+fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
     let raw_tags = &raw_tags[1..];
     let parsed_tags = raw_tags.split(';');
 
-    let mut tags: Vec<Tag> = vec![];
+    let mut tags: HashMap<String, Tag> = HashMap::new();
 
     for parsed_tag in parsed_tags {
         let mut split_tag = parsed_tag.split('=');
@@ -586,7 +607,7 @@ fn parse_tags(raw_tags: &str) -> Vec<Tag> {
             _ => Tag::Unknown,
         };
 
-        tags.push(tag);
+        tags.insert(tag_key.to_string(), tag);
     }
 
     tags
