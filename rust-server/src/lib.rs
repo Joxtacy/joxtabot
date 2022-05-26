@@ -638,19 +638,20 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
 }
 
 fn parse_source(raw_source: &str) -> Source {
-    let split_source = raw_source.split('!');
+    let mut split_source = raw_source.split('!');
 
-    let the_vec = split_source.collect::<Vec<&str>>();
+    let first = split_source.next().expect("Should have at least one part");
+    let second = split_source.next();
 
-    if the_vec.len() == 1 {
+    if second.is_some() {
         Source {
-            nick: None,
-            host: String::from(the_vec[0]),
+            nick: Some(first.to_string()),
+            host: second.unwrap().to_string(),
         }
     } else {
         Source {
-            nick: Some(String::from(the_vec[0])),
-            host: String::from(the_vec[1]),
+            nick: None,
+            host: first.to_string(),
         }
     }
 }
