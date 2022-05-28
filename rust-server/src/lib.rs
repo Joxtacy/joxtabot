@@ -136,6 +136,128 @@ mod tests {
     }
 
     #[test]
+    fn test_timeout_user() {
+        let message = "@ban-duration=350;room-id=12345678;target-user-id=87654321;tmi-sent-ts=1642719320727 :tmi.twitch.tv CLEARCHAT #dallas :ronni";
+
+        let actual = parse_message(message);
+
+        let mut expected_tags: HashMap<String, Tag> = HashMap::new();
+        expected_tags.insert(
+            String::from("room-id"),
+            Tag::RoomId(String::from("12345678")),
+        );
+        expected_tags.insert(
+            String::from("target-user-id"),
+            Tag::TargetUserId(String::from("87654321")),
+        );
+        expected_tags.insert(
+            String::from("tmi-sent-ts"),
+            Tag::TmiSentTs(String::from("1642719320727")),
+        );
+        expected_tags.insert(
+            String::from("ban-duration"),
+            Tag::BanDuration(350)
+        );
+
+        let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+
+        let expected_source = Source {
+            nick: None,
+            host: String::from("tmi.twitch.tv"),
+        };
+
+        let expected_parameters = Parameters {
+            parameters: vec![String::from("ronni")],
+        };
+
+        let expected = ParsedTwitchMessage {
+            command: expected_command,
+            tags: expected_tags,
+            source: Some(expected_source),
+            bot_command: None,
+            parameters: Some(expected_parameters),
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_clear_message_from_chat_room() {
+        let message = "@room-id=12345678;tmi-sent-ts=1642715695392 :tmi.twitch.tv CLEARCHAT #dallas";
+
+        let actual = parse_message(message);
+
+        let mut expected_tags: HashMap<String, Tag> = HashMap::new();
+        expected_tags.insert(
+            String::from("room-id"),
+            Tag::RoomId(String::from("12345678")),
+        );
+        expected_tags.insert(
+            String::from("tmi-sent-ts"),
+            Tag::TmiSentTs(String::from("1642715695392")),
+        );
+
+        let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+
+        let expected_source = Source {
+            nick: None,
+            host: String::from("tmi.twitch.tv"),
+        };
+
+        let expected = ParsedTwitchMessage {
+            command: expected_command,
+            tags: expected_tags,
+            source: Some(expected_source),
+            bot_command: None,
+            parameters: None,
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_perma_ban_user_message() {
+        let message = "@room-id=12345678;target-user-id=87654321;tmi-sent-ts=1642715756806 :tmi.twitch.tv CLEARCHAT #dallas :ronni";
+
+        let actual = parse_message(message);
+
+        let mut expected_tags: HashMap<String, Tag> = HashMap::new();
+        expected_tags.insert(
+            String::from("room-id"),
+            Tag::RoomId(String::from("12345678")),
+        );
+        expected_tags.insert(
+            String::from("target-user-id"),
+            Tag::TargetUserId(String::from("87654321")),
+        );
+        expected_tags.insert(
+            String::from("tmi-sent-ts"),
+            Tag::TmiSentTs(String::from("1642715756806")),
+        );
+
+        let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+
+        let expected_source = Source {
+            nick: None,
+            host: String::from("tmi.twitch.tv"),
+        };
+
+        let expected_parameters = Parameters {
+            parameters: vec![String::from("ronni")],
+        };
+
+        let expected = ParsedTwitchMessage {
+            command: expected_command,
+            tags: expected_tags,
+            source: Some(expected_source),
+            bot_command: None,
+            parameters: Some(expected_parameters),
+        };
+
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn test_parse_tags() {
         let message = "badges=staff/1,broadcaster/1,turbo/1;color=#FF0000;display-name=PetsgomOO;emote-only=1;emotes=33:0-7;flags=0-7:A.6/P.6,25-36:A.1/I.2;id=c285c9ed-8b1b-4702-ae1c-c64d76cc74ef;mod=0;room-id=81046256;subscriber=0;turbo=0;tmi-sent-ts=1550868292494;user-id=81046256;user-type=staff";
 
@@ -318,6 +440,7 @@ pub enum UserType {
 #[derive(PartialEq, Debug)]
 pub enum Tag {
     Badges(Vec<Badge>),
+    BanDuration(usize),
     Color(String),
     DisplayName(String),
     EmoteOnly(bool),
@@ -328,6 +451,7 @@ pub enum Tag {
     Mod(bool),
     RoomId(String),
     Subscriber(bool),
+    TargetUserId(String),
     Turbo(bool),
     TmiSentTs(String),
     UserId(String),
@@ -530,6 +654,7 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
         let tag_key = split_tag.next().expect("Should contain at least a key");
         let tag_value = split_tag.next();
 
+        // TODO: Add error prints for None cases that should not happen
         let tag = match tag_key {
             "badges" | "badge-info" => match tag_value {
                 Some(value) => {
@@ -537,6 +662,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::Badges(badges)
                 }
                 None => Tag::Badges(vec![]),
+            },
+            "ban-duration" => match tag_value {
+                Some(value) => {
+                    let duration = value.parse::<usize>().expect("Should have a duration");
+                    Tag::BanDuration(duration)
+                }
+                None => Tag::BanDuration(0),
             },
             "color" => match tag_value {
                 Some(value) => Tag::Color(value.to_string()),
@@ -598,6 +730,15 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                 }
                 None => Tag::Subscriber(false),
             },
+            "target-user-id" => match tag_value {
+                Some(value) => {
+                    Tag::TargetUserId(value.to_string())
+                }
+                None => {
+                    eprintln!("Should have a target-user-id");
+                    Tag::TargetUserId(String::from(""))
+                }
+            }
             "turbo" => match tag_value {
                 Some(value) => {
                     let turbo = match value {
@@ -668,6 +809,10 @@ fn parse_command(raw_command: &str) -> Command {
     let command = command_parts.next().expect("This should be the command");
 
     match command {
+        "CLEARCHAT" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::CLEARCHAT(channel.to_string())
+        }
         "PING" => Command::PING,
         "PRIVMSG" => {
             let channel = command_parts.next().expect("This should exist");
