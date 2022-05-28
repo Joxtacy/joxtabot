@@ -154,10 +154,7 @@ mod tests {
             String::from("tmi-sent-ts"),
             Tag::TmiSentTs(String::from("1642719320727")),
         );
-        expected_tags.insert(
-            String::from("ban-duration"),
-            Tag::BanDuration(350)
-        );
+        expected_tags.insert(String::from("ban-duration"), Tag::BanDuration(350));
 
         let expected_command = Command::CLEARCHAT(String::from("#dallas"));
 
@@ -183,7 +180,8 @@ mod tests {
 
     #[test]
     fn test_clear_message_from_chat_room() {
-        let message = "@room-id=12345678;tmi-sent-ts=1642715695392 :tmi.twitch.tv CLEARCHAT #dallas";
+        let message =
+            "@room-id=12345678;tmi-sent-ts=1642715695392 :tmi.twitch.tv CLEARCHAT #dallas";
 
         let actual = parse_message(message);
 
@@ -654,7 +652,6 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
         let tag_key = split_tag.next().expect("Should contain at least a key");
         let tag_value = split_tag.next();
 
-        // TODO: Add error prints for None cases that should not happen
         let tag = match tag_key {
             "badges" | "badge-info" => match tag_value {
                 Some(value) => {
@@ -668,15 +665,24 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     let duration = value.parse::<usize>().expect("Should have a duration");
                     Tag::BanDuration(duration)
                 }
-                None => Tag::BanDuration(0),
+                None => {
+                    eprintln!("Should have a ban-duration");
+                    Tag::BanDuration(0)
+                }
             },
             "color" => match tag_value {
                 Some(value) => Tag::Color(value.to_string()),
-                None => Tag::Color(String::from("")),
+                None => {
+                    eprintln!("Should have a color");
+                    Tag::Color(String::from(""))
+                }
             },
             "display-name" => match tag_value {
                 Some(value) => Tag::DisplayName(value.to_string()),
-                None => Tag::DisplayName(String::from("")),
+                None => {
+                    eprintln!("Should have a display-name");
+                    Tag::DisplayName(String::from(""))
+                }
             },
             "emote-only" => match tag_value {
                 Some(value) => {
@@ -704,7 +710,10 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "id" => match tag_value {
                 Some(value) => Tag::Id(value.to_string()),
-                None => Tag::Id(String::from("0")),
+                None => {
+                    eprintln!("Should have an id");
+                    Tag::Id(String::from("0"))
+                }
             },
             "mod" => match tag_value {
                 Some(value) => {
@@ -718,7 +727,10 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "room-id" => match tag_value {
                 Some(value) => Tag::RoomId(value.to_string()),
-                None => Tag::RoomId(String::from("0")),
+                None => {
+                    eprintln!("Should have a room-id");
+                    Tag::RoomId(String::from("0"))
+                }
             },
             "subscriber" => match tag_value {
                 Some(value) => {
@@ -731,14 +743,12 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                 None => Tag::Subscriber(false),
             },
             "target-user-id" => match tag_value {
-                Some(value) => {
-                    Tag::TargetUserId(value.to_string())
-                }
+                Some(value) => Tag::TargetUserId(value.to_string()),
                 None => {
                     eprintln!("Should have a target-user-id");
                     Tag::TargetUserId(String::from(""))
                 }
-            }
+            },
             "turbo" => match tag_value {
                 Some(value) => {
                     let turbo = match value {
@@ -751,11 +761,17 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "tmi-sent-ts" => match tag_value {
                 Some(value) => Tag::TmiSentTs(value.to_string()),
-                None => Tag::TmiSentTs(String::from("0")),
+                None => {
+                    eprintln!("Should have a tmi-sent-ts");
+                    Tag::TmiSentTs(String::from("0"))
+                }
             },
             "user-id" => match tag_value {
                 Some(value) => Tag::UserId(value.to_string()),
-                None => Tag::UserId(String::from("0")),
+                None => {
+                    eprintln!("Should have a user-id");
+                    Tag::UserId(String::from("0"))
+                }
             },
             "user-type" => match tag_value {
                 Some(value) => {
@@ -767,7 +783,10 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     };
                     Tag::UserType(user_type)
                 }
-                None => Tag::UserType(UserType::Normal),
+                None => {
+                    eprintln!("Should have a user-type");
+                    Tag::UserType(UserType::Normal)
+                }
             },
             _ => Tag::Unknown,
         };
