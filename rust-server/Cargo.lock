@@ -3,5 +3,12 @@
 version = 3
 
 [[package]]
-name = "rust-server"
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "twitch_irc_parser",
+]
+
+[[package]]
+name = "twitch_irc_parser"
 version = "0.1.0"
