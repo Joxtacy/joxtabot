@@ -150,9 +150,7 @@ mod tests {
 
             let actual_parameters = parse_parameters(message);
 
-            let expected_parameters = Parameters {
-                parameters: vec![String::from("!dilly"), String::from("dally")],
-            };
+            let expected_parameters = vec![String::from("!dilly"), String::from("dally")];
 
             assert_eq!(actual_parameters, expected_parameters);
         }
@@ -163,9 +161,7 @@ mod tests {
 
             let actual_parameters = parse_parameters(message);
 
-            let expected_parameters = Parameters {
-                parameters: vec![String::from("")],
-            };
+            let expected_parameters = vec![String::from("")];
 
             assert_eq!(actual_parameters, expected_parameters);
         }
@@ -288,16 +284,7 @@ pub enum Tag {
     Unknown,
 }
 
-#[derive(PartialEq, Debug)]
-pub struct Parameters {
-    parameters: Vec<String>,
-}
-
-impl Parameters {
-    pub fn new(parameters: Vec<String>) -> Parameters {
-        Parameters { parameters }
-    }
-}
+type Parameters = Vec<String>;
 
 #[derive(PartialEq, Debug)]
 pub struct ParsedTwitchMessage {
@@ -656,7 +643,7 @@ fn parse_source(raw_source: &str) -> Source {
 fn parse_parameters(raw_parameters: &str) -> Parameters {
     let split_params = raw_parameters.split(" ");
     let parameters: Vec<String> = split_params.map(|param| String::from(param)).collect();
-    Parameters { parameters }
+    parameters
 }
 
 fn parse_command(raw_command: &str) -> Command {

@@ -71,7 +71,7 @@ fn test_perma_ban_user_message() {
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
-    let expected_parameters = Parameters::new(vec![String::from("ronni")]);
+    let expected_parameters = vec![String::from("ronni")];
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
@@ -140,7 +140,7 @@ fn test_timeout_user() {
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
-    let expected_parameters = Parameters::new(vec![String::from("ronni")]);
+    let expected_parameters = vec![String::from("ronni")];
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
@@ -166,7 +166,7 @@ fn message_with_tags() {
     );
     let expected_command = Command::PRIVMSG(String::from("#petsgomoo"));
     let expected_bot_command: Option<BotCommand> = None;
-    let expected_parameters = Parameters::new(vec![String::from("DansGame")]);
+    let expected_parameters = vec![String::from("DansGame")];
 
     let expected_parsed_message = ParsedTwitchMessage {
         tags: expected_tags,
@@ -199,7 +199,7 @@ fn test_parse_message() {
 
     let expected_bot_command = BotCommand::new(String::from("dilly"), vec![String::from("dally")]);
 
-    let expected_parameters = Parameters::new(vec![String::from("!dilly"), String::from("dally")]);
+    let expected_parameters = vec![String::from("!dilly"), String::from("dally")];
 
     let expected_source = Source::new(
         Some(String::from("lovingt3s")),
