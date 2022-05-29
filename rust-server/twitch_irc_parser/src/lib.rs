@@ -174,6 +174,7 @@ pub enum Command {
     PART(String),
     NOTICE(String),
     CLEARCHAT(String),
+    CLEARMSG(String),
     HOSTTARGET(String),
     PRIVMSG(String),
     PING,
@@ -273,9 +274,11 @@ pub enum Tag {
     Emotes(Vec<Emote>),
     EmoteSets(Vec<usize>),
     Id(String),
+    Login(String),
     Mod(bool),
     RoomId(String),
     Subscriber(bool),
+    TargetMsgId(String),
     TargetUserId(String),
     Turbo(bool),
     TmiSentTs(String),
@@ -539,6 +542,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::Id(String::from("0"))
                 }
             },
+            "login" => match tag_value {
+                Some(value) => Tag::Login(value.to_string()),
+                None => {
+                    eprintln!("Should have a login");
+                    Tag::Login(String::from(""))
+                }
+            },
             "mod" => match tag_value {
                 Some(value) => {
                     let r#mod = match value {
@@ -565,6 +575,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::Subscriber(subscriber)
                 }
                 None => Tag::Subscriber(false),
+            },
+            "target-msg-id" => match tag_value {
+                Some(value) => Tag::TargetMsgId(value.to_string()),
+                None => {
+                    eprintln!("Should have a target-msg-id");
+                    Tag::TargetMsgId(String::from(""))
+                }
             },
             "target-user-id" => match tag_value {
                 Some(value) => Tag::TargetUserId(value.to_string()),
@@ -655,6 +672,10 @@ fn parse_command(raw_command: &str) -> Command {
         "CLEARCHAT" => {
             let channel = command_parts.next().expect("This should exist");
             Command::CLEARCHAT(channel.to_string())
+        }
+        "CLEARMSG" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::CLEARMSG(channel.to_string())
         }
         "PING" => Command::PING,
         "PRIVMSG" => {

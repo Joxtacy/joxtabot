@@ -106,4 +106,3 @@ fn test_timeout_user() {
 
     assert_eq!(actual, expected);
 }
-
