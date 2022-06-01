@@ -73,6 +73,7 @@ fn message_with_tags() {
     assert_eq!(actual, expected_parsed_message);
 }
 
+// TODO: Fix this test
 #[test]
 fn ping_has_command_component() {
     let message = "PING :tmi.twitch.tv";

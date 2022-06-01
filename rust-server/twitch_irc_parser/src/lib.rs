@@ -1,3 +1,9 @@
+//! # Twitch IRC Parser
+//!
+//! `twitch_irc_parser` contains the utilities needed to parse a single Twitch Message.
+//! It is based on the parser example found on the Twitch Developer site.
+//! <https://dev.twitch.tv/docs/irc/example-parser>
+
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -168,6 +174,9 @@ mod tests {
     }
 }
 
+/// Representation of the message command.
+// TODO: What are the values in the enums?
+// TODO: Might change each command to have the full message information directly in it.
 #[derive(PartialEq, Debug)]
 pub enum Command {
     JOIN(String),
@@ -187,7 +196,9 @@ pub enum Command {
     UNSUPPORTED,
 }
 
-// BADGE(version)
+/// Representation of the different badges a user can have.
+///
+/// The `usize` represents the version of the badge. Most often `1`, but for the `SUBSCRIBER` badge it represents how long the user has been subscribed in months.
 #[derive(PartialEq, Debug)]
 pub enum Badge {
     ADMIN(usize),
@@ -201,6 +212,7 @@ pub enum Badge {
     UNKNOWN,
 }
 
+/// Representation of the source of the message.
 #[derive(PartialEq, Debug)]
 pub struct Source {
     nick: Option<String>,
@@ -208,11 +220,23 @@ pub struct Source {
 }
 
 impl Source {
+    /// Creates a new instance of the `Source` struct.
+    ///
+    /// # Examples
+    /// ```
+    /// let source = twitch_irc_parser::Source::new(
+    ///     Some(String::from("joxtacy")),
+    ///     String::from("joxtacy@joxtacy.tmi.twitch.tv")
+    /// );
+    /// ```
     pub fn new(nick: Option<String>, host: String) -> Source {
         Source { nick, host }
     }
 }
 
+/// Represents a bot command.
+/// Bot commands are `PRIVMSG`s that begin with an exclamation point (`!`) directly followed by the command.
+/// The parameters to the command will be a vector of the rest of the words in the message delimited by whitespaces.
 #[derive(PartialEq, Debug)]
 pub struct BotCommand {
     command: String,
@@ -228,6 +252,7 @@ impl BotCommand {
     }
 }
 
+/// Represents the start and end index in a string.
 #[derive(PartialEq, Debug)]
 pub struct TextPosition {
     start_index: usize,
@@ -243,6 +268,7 @@ impl TextPosition {
     }
 }
 
+/// Represents an emotes id and where in the message this emote is.
 #[derive(PartialEq, Debug)]
 pub struct Emote {
     id: usize,
@@ -255,40 +281,53 @@ impl Emote {
     }
 }
 
+/// Represents what type of user sent the message.
 #[derive(PartialEq, Debug)]
 pub enum UserType {
-    Normal,    // A normal user - ""
-    Admin,     // A Twitch administrator - "admin"
-    GlobalMod, // A global moderator - "global_mod"
-    Staff,     // A Twitch employee - "staff"
+    /// A normal user.
+    Normal,// ""
+
+    /// A Twitch administrator.
+    Admin, // "admin"
+
+    /// A global moderator.
+    GlobalMod, // "global_mod"
+
+    /// A Twitch employee.
+    Staff, // "staff"
 }
 
+/// Represents a tag in a message.
+/// Tags are found directly after an at (`@`) symbol.
+// TODO: What are the values in the enums?
 #[derive(PartialEq, Debug)]
 pub enum Tag {
-    Badges(Vec<Badge>),
-    BanDuration(usize),
-    Color(String),
-    DisplayName(String),
-    EmoteOnly(bool),
-    FollowersOnly(bool),
+    Badges(Vec<Badge>),  // List of badges
+    BanDuration(usize),  // Duration in seconds
+    Color(String),       // Hex color. Ex. #B000B5
+    DisplayName(String), // Display name of the chatter
+    EmoteOnly(bool),     // True if emote only mode is on
+    FollowersOnly(bool), // True if follower only mode is on
     Emotes(Vec<Emote>),
-    EmoteSets(Vec<usize>),
-    Id(String),
-    Login(String),
-    Mod(bool),
-    RoomId(String),
-    Subscriber(bool),
-    TargetMsgId(String),
-    TargetUserId(String),
-    Turbo(bool),
+    EmoteSets(Vec<usize>), // List of emote sets
+    Id(String),            // Id of the message
+    Login(String),         // The login of the user whos message is being cleared
+    Mod(bool),             // True if the user is a moderator
+    RoomId(String),        // Id of the chat room
+    Subscriber(bool),      // True if the user is a subscriber
+    TargetMsgId(String),   // Id of the message the command is relating to
+    TargetUserId(String),  //  Id of the user the command is relating to
+    Turbo(bool),           // True if the user has Turbo
     TmiSentTs(String),
-    UserId(String),
-    UserType(UserType),
+    UserId(String),     // Id of the user
+    UserType(UserType), // Type of the user
     Unknown,
 }
 
+/// Represents a vector of strings that has been separated by whitespaces.
 type Parameters = Vec<String>;
 
+/// Represents a message parsed into an easy to work with struct.
 #[derive(PartialEq, Debug)]
 pub struct ParsedTwitchMessage {
     pub tags: HashMap<String, Tag>,
@@ -298,6 +337,32 @@ pub struct ParsedTwitchMessage {
     pub bot_command: Option<BotCommand>,
 }
 
+/// Parses a message from a Twitch IRC Chat
+///
+/// # Panics
+///
+/// When the message lacks a source.
+///
+/// When the message starts with a '@' but has nothing after it.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use twitch_irc_parser::{parse_message, Command, ParsedTwitchMessage};
+///
+/// let message = "PING :tmi.twitch.tv";
+/// let parsed = parse_message(message);
+///
+/// let expected = ParsedTwitchMessage {
+///     tags: HashMap::new(),
+///     source: None,
+///     command: Command::PING,
+///     bot_command: None,
+///     parameters: Some(vec![String::from("tmi.twitch.tv")]),
+/// };
+///
+/// assert_eq!(parsed, expected);
 pub fn parse_message(message: &str) -> ParsedTwitchMessage {
     let mut idx = 0;
 
