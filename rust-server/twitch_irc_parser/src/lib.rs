@@ -179,20 +179,37 @@ mod tests {
 // TODO: Might change each command to have the full message information directly in it.
 #[derive(PartialEq, Debug)]
 pub enum Command {
+    /// A JOIN type message. The `String` is the channel name.
     JOIN(String),
+    /// A PART type message. The `String` is the channel name.
     PART(String),
+    /// A NOTICE type message. The `String` is the channel name.
     NOTICE(String),
+    /// A CLEARCHAT type message. The `String` is the channel name.
     CLEARCHAT(String),
+    /// A CLEARMSG type message. The `String` is the channel name.
     CLEARMSG(String),
+    /// A HOSTTARGET type message. The `String` is the channel name.
     HOSTTARGET(String),
+    /// A PRIVMSG type message. The `String` is the channel name.
     PRIVMSG(String),
+    /// A PING type message.
     PING,
+    // TODO: What is the `bool`?
+    /// A CAP type message.
     CAP(bool),
+    /// A GLOBALUSERSTATE type message.
     GLOBALUSERSTATE,
+    /// A USERSTATE type message. The `String` is the channel name.
     USERSTATE(String),
+    /// A ROOMSTATE type message. The `String` is the channel name.
     ROOMSTATE(String),
+    /// A RECONNECT type message.
     RECONNECT,
+    // TODO: what is the `Option<String>`?
+    /// A NUMBER type message. The `u32` is the message number.
     NUMBER(u32, Option<String>),
+    /// Unsupported message type.
     UNSUPPORTED,
 }
 
@@ -201,14 +218,31 @@ pub enum Command {
 /// The `usize` represents the version of the badge. Most often `1`, but for the `Subscriber` badge it represents how long the user has been subscribed in months.
 #[derive(PartialEq, Debug)]
 pub enum Badge {
+    /// An admin badge. The `usize` represents the version of the badge.
     Admin(usize),
+
+    /// A bits badge. The `usize` represents the version of the badge.
     Bits(usize),
+
+    /// A broadcaster badge. The `usize` represents the version of the badge.
     Broadcaster(usize),
+
+    /// A moderator badge. The `usize` represents the version of the badge.
     Moderator(usize),
+
+    /// A staff badge. The `usize` represents the version of the badge.
     Staff(usize),
+
+    /// A subscriber badge. The `usize` represents the version of the badge.
     Subscriber(usize),
+
+    /// A turbo badge. The `usize` represents the version of the badge.
     Turbo(usize),
+
+    /// A vip badge. The `usize` represents the version of the badge.
     Vip(usize),
+
+    /// Unknown. Used for badges that are not able to be parsed.
     Unknown,
 }
 
