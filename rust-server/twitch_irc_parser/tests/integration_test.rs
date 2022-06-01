@@ -7,9 +7,9 @@ fn create_tags() -> HashMap<String, Tag> {
     tags.insert(
         String::from("badges"),
         Tag::Badges(vec![
-            Badge::STAFF(1),
-            Badge::BROADCASTER(1),
-            Badge::TURBO(1),
+            Badge::Staff(1),
+            Badge::Broadcaster(1),
+            Badge::Turbo(1),
         ]),
     );
     tags.insert(String::from("color"), Tag::Color(String::from("#FF0000")));

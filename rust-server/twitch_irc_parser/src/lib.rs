@@ -16,9 +16,9 @@ mod tests {
         tags.insert(
             String::from("badges"),
             Tag::Badges(vec![
-                Badge::STAFF(1),
-                Badge::BROADCASTER(1),
-                Badge::TURBO(1),
+                Badge::Staff(1),
+                Badge::Broadcaster(1),
+                Badge::Turbo(1),
             ]),
         );
         tags.insert(String::from("color"), Tag::Color(String::from("#FF0000")));
@@ -198,18 +198,18 @@ pub enum Command {
 
 /// Representation of the different badges a user can have.
 ///
-/// The `usize` represents the version of the badge. Most often `1`, but for the `SUBSCRIBER` badge it represents how long the user has been subscribed in months.
+/// The `usize` represents the version of the badge. Most often `1`, but for the `Subscriber` badge it represents how long the user has been subscribed in months.
 #[derive(PartialEq, Debug)]
 pub enum Badge {
-    ADMIN(usize),
-    BITS(usize),
-    BROADCASTER(usize),
-    MODERATOR(usize),
-    STAFF(usize),
-    SUBSCRIBER(usize),
-    TURBO(usize),
-    VIP(usize),
-    UNKNOWN,
+    Admin(usize),
+    Bits(usize),
+    Broadcaster(usize),
+    Moderator(usize),
+    Staff(usize),
+    Subscriber(usize),
+    Turbo(usize),
+    Vip(usize),
+    Unknown,
 }
 
 /// Representation of the source of the message.
@@ -454,15 +454,15 @@ fn parse_badges(raw_badges: &str) -> Vec<Badge> {
 
         let badge_version = badge_version.unwrap_or(0);
         let badge = match badge_name {
-            "admin" => Badge::ADMIN(badge_version),
-            "bits" => Badge::BITS(badge_version),
-            "broadcaster" => Badge::BROADCASTER(badge_version),
-            "moderator" => Badge::MODERATOR(badge_version),
-            "staff" => Badge::STAFF(badge_version),
-            "subscriber" => Badge::SUBSCRIBER(badge_version),
-            "turbo" => Badge::TURBO(badge_version),
-            "vip" => Badge::VIP(badge_version),
-            _ => Badge::UNKNOWN,
+            "admin" => Badge::Admin(badge_version),
+            "bits" => Badge::Bits(badge_version),
+            "broadcaster" => Badge::Broadcaster(badge_version),
+            "moderator" => Badge::Moderator(badge_version),
+            "staff" => Badge::Staff(badge_version),
+            "subscriber" => Badge::Subscriber(badge_version),
+            "turbo" => Badge::Turbo(badge_version),
+            "vip" => Badge::Vip(badge_version),
+            _ => Badge::Unknown,
         };
         badges.push(badge);
     }
