@@ -344,7 +344,8 @@ pub enum Tag {
     Color(String),       // Hex color. Ex. #B000B5
     DisplayName(String), // Display name of the chatter
     EmoteOnly(bool),     // True if emote only mode is on
-    FollowersOnly(bool), // True if follower only mode is on
+    /// An integer value that determines whether only followers can post messages in the chat room. The value indicates how long, in minutes, the user must have followed the broadcaster before posting chat messages. If the value is -1, the chat room is not restricted to followers only.
+    FollowersOnly(i32),
     Emotes(Vec<Emote>),
     EmoteSets(Vec<usize>), // List of emote sets
     Id(String),            // Id of the message
@@ -352,11 +353,17 @@ pub enum Tag {
     Mod(bool),             // True if the user is a moderator
     /// An ID that you can use to programmatically determine the action’s outcome. For a list of possible IDs, see [NOTICE Message IDs](https://dev.twitch.tv/docs/irc/msg-id)
     MsgId(String),
-    RoomId(String),        // Id of the chat room
-    Subscriber(bool),      // True if the user is a subscriber
-    TargetMsgId(String),   // Id of the message the command is relating to
-    TargetUserId(String),  //  Id of the user the command is relating to
-    Turbo(bool),           // True if the user has Turbo
+    /// A Boolean value that determines whether a user’s messages must be unique. Applies only to messages with more than 9 characters. Is true (1) if users must post unique messages; otherwise, false (0).
+    R9K(bool),
+    RoomId(String), // Id of the chat room
+    /// An integer value that determines how long, in seconds, users must wait between sending messages.
+    Slow(usize),
+    Subscriber(bool), // True if the user is a subscriber
+    /// A Boolean value that determines whether only subscribers and moderators can chat in the chat room. Is true (1) if only subscribers and moderators can chat; otherwise, false (0).
+    SubsOnly(bool),
+    TargetMsgId(String),  // Id of the message the command is relating to
+    TargetUserId(String), //  Id of the user the command is relating to
+    Turbo(bool),          // True if the user has Turbo
     TmiSentTs(String),
     UserId(String),     // Id of the user
     UserType(UserType), // Type of the user
@@ -652,6 +659,16 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                 }
                 None => Tag::EmoteSets(vec![]),
             },
+            "followers-only" => match tag_value {
+                Some(value) => {
+                    let minutes = value.parse::<i32>().expect("Should be a number");
+                    Tag::FollowersOnly(minutes)
+                }
+                None => {
+                    eprintln!("Should have a time in minutes");
+                    Tag::FollowersOnly(-1)
+                }
+            },
             "id" => match tag_value {
                 Some(value) => Tag::Id(value.to_string()),
                 None => {
@@ -683,11 +700,56 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::MsgId(String::from(""))
                 }
             },
+            "r9k" => match tag_value {
+                Some(value) => {
+                    let r9k = match value {
+                        "1" => true,
+                        "0" => false,
+                        _ => {
+                            eprint!("Should only be 1 or 0");
+                            false
+                        }
+                    };
+                    Tag::R9K(r9k)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::R9K(false)
+                }
+            },
             "room-id" => match tag_value {
                 Some(value) => Tag::RoomId(value.to_string()),
                 None => {
                     eprintln!("Should have a room-id");
                     Tag::RoomId(String::from("0"))
+                }
+            },
+            "slow" => match tag_value {
+                Some(value) => {
+                    let slow = value.parse::<usize>().expect("Should have a duration");
+
+                    Tag::Slow(slow)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::Slow(0)
+                }
+            },
+            "subs-only" => match tag_value {
+                Some(value) => {
+                    let subs_only = match value {
+                        "1" => true,
+                        "0" => false,
+                        _ => {
+                            eprint!("Should only be 1 or 0");
+                            false
+                        }
+                    };
+                    Tag::SubsOnly(subs_only)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::SubsOnly(false)
                 }
             },
             "subscriber" => match tag_value {
@@ -816,6 +878,10 @@ fn parse_command(raw_command: &str) -> Command {
             Command::PRIVMSG(channel.to_string())
         }
         "RECONNECT" => Command::RECONNECT,
+        "ROOMSTATE" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::ROOMSTATE(channel.to_string())
+        }
         _ => Command::UNSUPPORTED,
     }
 }
