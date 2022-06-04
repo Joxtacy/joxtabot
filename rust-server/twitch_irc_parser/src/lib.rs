@@ -815,6 +815,7 @@ fn parse_command(raw_command: &str) -> Command {
             let channel = command_parts.next().expect("This should exist");
             Command::PRIVMSG(channel.to_string())
         }
+        "RECONNECT" => Command::RECONNECT,
         _ => Command::UNSUPPORTED,
     }
 }
