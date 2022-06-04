@@ -793,6 +793,10 @@ fn parse_command(raw_command: &str) -> Command {
             Command::CLEARMSG(channel.to_string())
         }
         "GLOBALUSERSTATE" => Command::GLOBALUSERSTATE,
+        "HOSTTARGET" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::HOSTTARGET(channel.to_string())
+        }
         "PING" => Command::PING,
         "PRIVMSG" => {
             let channel = command_parts.next().expect("This should exist");
