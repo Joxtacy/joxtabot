@@ -350,6 +350,8 @@ pub enum Tag {
     Id(String),            // Id of the message
     Login(String),         // The login of the user whos message is being cleared
     Mod(bool),             // True if the user is a moderator
+    /// An ID that you can use to programmatically determine the action’s outcome. For a list of possible IDs, see [NOTICE Message IDs](https://dev.twitch.tv/docs/irc/msg-id)
+    MsgId(String),
     RoomId(String),        // Id of the chat room
     Subscriber(bool),      // True if the user is a subscriber
     TargetMsgId(String),   // Id of the message the command is relating to
@@ -674,6 +676,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                 }
                 None => Tag::Mod(false),
             },
+            "msg-id" => match tag_value {
+                Some(value) => Tag::MsgId(value.to_string()),
+                None => {
+                    eprintln!("Should have a NOTICE Message ID");
+                    Tag::MsgId(String::from(""))
+                }
+            },
             "room-id" => match tag_value {
                 Some(value) => Tag::RoomId(value.to_string()),
                 None => {
@@ -796,6 +805,10 @@ fn parse_command(raw_command: &str) -> Command {
         "HOSTTARGET" => {
             let channel = command_parts.next().expect("This should exist");
             Command::HOSTTARGET(channel.to_string())
+        }
+        "NOTICE" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::NOTICE(channel.to_string())
         }
         "PING" => Command::PING,
         "PRIVMSG" => {
