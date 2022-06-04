@@ -336,6 +336,9 @@ pub enum UserType {
 // TODO: What are the values in the enums?
 #[derive(PartialEq, Debug)]
 pub enum Tag {
+    /// Currently only holds how long a user has been subscribed in months.
+    /// `@badge-info=subscriber/8`
+    BadgeInfo(usize),
     Badges(Vec<Badge>),  // List of badges
     BanDuration(usize),  // Duration in seconds
     Color(String),       // Hex color. Ex. #B000B5
@@ -579,7 +582,20 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
         let tag_value = split_tag.next();
 
         let tag = match tag_key {
-            "badges" | "badge-info" => match tag_value {
+            "badge-info" => match tag_value {
+                Some(value) => {
+                    let mut split = value.split('/');
+                    split.next();
+                    let subscriber_length = split
+                        .next()
+                        .expect("Should have subscriber length value")
+                        .parse::<usize>()
+                        .expect("Should be a number");
+                    Tag::BadgeInfo(subscriber_length)
+                }
+                None => Tag::BadgeInfo(0),
+            },
+            "badges" => match tag_value {
                 Some(value) => {
                     let badges = parse_badges(value);
                     Tag::Badges(badges)
@@ -776,6 +792,7 @@ fn parse_command(raw_command: &str) -> Command {
             let channel = command_parts.next().expect("This should exist");
             Command::CLEARMSG(channel.to_string())
         }
+        "GLOBALUSERSTATE" => Command::GLOBALUSERSTATE,
         "PING" => Command::PING,
         "PRIVMSG" => {
             let channel = command_parts.next().expect("This should exist");
