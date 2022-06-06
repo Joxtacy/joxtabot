@@ -200,6 +200,13 @@ pub enum Command {
     CAP(bool),
     /// A GLOBALUSERSTATE type message.
     GLOBALUSERSTATE,
+    /// Sent when events like someone subscribing to the channel occurs.
+    ///
+    /// The Twitch IRC server sends this message when:
+    /// A user subscribes to the channel, re-subscribes to the channel, or gifts a subscription to another user.
+    /// Another broadcaster raids the channel. Raid is a Twitch feature that lets broadcasters send their viewers to another channel to help support and grow other members in the community. [Learn more](https://help.twitch.tv/s/article/how-to-use-raids)
+    /// A viewer milestone is celebrated such as a new viewer chatting for the first time.
+    USERNOTICE(String),
     /// A USERSTATE type message. The `String` is the channel name.
     USERSTATE(String),
     /// A ROOMSTATE type message. The `String` is the channel name.
@@ -229,6 +236,10 @@ pub enum Badge {
 
     /// A moderator badge. The `usize` represents the version of the badge.
     Moderator(usize),
+
+    /// Not sure what this one represents.
+    /// TODO: Find out what this badge mean
+    Premium(usize),
 
     /// A staff badge. The `usize` represents the version of the badge.
     Staff(usize),
@@ -353,6 +364,15 @@ pub enum Tag {
     Mod(bool),             // True if the user is a moderator
     /// An ID that you can use to programmatically determine the action’s outcome. For a list of possible IDs, see [NOTICE Message IDs](https://dev.twitch.tv/docs/irc/msg-id)
     MsgId(String),
+    MsgParamCumulativeMonths(usize),
+    MsgParamMonths(usize),
+    MsgParamRecipientDisplayName(String),
+    MsgParamRecipientId(String),
+    MsgParamRecipientName(String),
+    MsgParamStreakMonths(usize),
+    MsgParamShouldShareStreak(bool),
+    MsgParamSubPlan(String),
+    MsgParamSubPlanName(String),
     /// A Boolean value that determines whether a user’s messages must be unique. Applies only to messages with more than 9 characters. Is true (1) if users must post unique messages; otherwise, false (0).
     R9K(bool),
     RoomId(String), // Id of the chat room
@@ -361,6 +381,7 @@ pub enum Tag {
     Subscriber(bool), // True if the user is a subscriber
     /// A Boolean value that determines whether only subscribers and moderators can chat in the chat room. Is true (1) if only subscribers and moderators can chat; otherwise, false (0).
     SubsOnly(bool),
+    SystemMsg(String),
     TargetMsgId(String),  // Id of the message the command is relating to
     TargetUserId(String), //  Id of the user the command is relating to
     Turbo(bool),          // True if the user has Turbo
@@ -504,6 +525,7 @@ fn parse_badges(raw_badges: &str) -> Vec<Badge> {
             "bits" => Badge::Bits(badge_version),
             "broadcaster" => Badge::Broadcaster(badge_version),
             "moderator" => Badge::Moderator(badge_version),
+            "premium" => Badge::Premium(badge_version),
             "staff" => Badge::Staff(badge_version),
             "subscriber" => Badge::Subscriber(badge_version),
             "turbo" => Badge::Turbo(badge_version),
@@ -518,6 +540,10 @@ fn parse_badges(raw_badges: &str) -> Vec<Badge> {
 
 fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
     let mut emotes: Vec<Emote> = vec![];
+
+    if raw_emotes.is_empty() {
+        return emotes;
+    }
 
     let split_emotes = raw_emotes.split('/');
     for raw_emote in split_emotes {
@@ -593,14 +619,19 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
         let tag = match tag_key {
             "badge-info" => match tag_value {
                 Some(value) => {
-                    let mut split = value.split('/');
-                    split.next();
-                    let subscriber_length = split
-                        .next()
-                        .expect("Should have subscriber length value")
-                        .parse::<usize>()
-                        .expect("Should be a number");
-                    Tag::BadgeInfo(subscriber_length)
+                    if value.is_empty() {
+                        eprintln!("What to do when `badge-info` is empty? Returning Tag::BadgeInfo(0) for now.");
+                        Tag::BadgeInfo(0)
+                    } else {
+                        let mut split = value.split('/');
+                        split.next();
+                        let subscriber_length = split
+                            .next()
+                            .expect("Should have subscriber length value")
+                            .parse::<usize>()
+                            .expect("Should be a number");
+                        Tag::BadgeInfo(subscriber_length)
+                    }
                 }
                 None => Tag::BadgeInfo(0),
             },
@@ -700,6 +731,88 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::MsgId(String::from(""))
                 }
             },
+            "msg-param-cumulative-months" => match tag_value {
+                Some(value) => {
+                    let months = value.parse::<usize>().expect("Should have months");
+
+                    Tag::MsgParamCumulativeMonths(months)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamCumulativeMonths(0)
+                }
+            },
+            "msg-param-months" => match tag_value {
+                Some(value) => {
+                    let months = value.parse::<usize>().expect("Should have months");
+
+                    Tag::MsgParamMonths(months)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamMonths(0)
+                }
+            }
+            "msg-param-recipient-display-name" => match tag_value {
+                Some(value) => Tag::MsgParamRecipientDisplayName(value.to_string()),
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamRecipientDisplayName(String::from(""))
+                }
+            }
+            "msg-param-recipient-id" => match tag_value {
+                Some(value) => Tag::MsgParamRecipientId(value.to_string()),
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamRecipientId(String::from(""))
+                }
+            }
+            "msg-param-recipient-name" => match tag_value {
+                Some(value) => Tag::MsgParamRecipientName(value.to_string()),
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamRecipientName(String::from(""))
+                }
+            }
+            "msg-param-streak-months" => match tag_value {
+                Some(value) => {
+                    let months = value.parse::<usize>().expect("Should have months");
+
+                    Tag::MsgParamStreakMonths(months)
+                }
+                None => {
+                    eprintln!("Should have a value");
+                    Tag::MsgParamStreakMonths(0)
+                }
+            },
+            "msg-param-should-share-streak" => match tag_value {
+                Some(value) => {
+                    let should_share = match value {
+                        "1" => true,
+                        "0" => false,
+                        _ => {
+                            eprintln!("Should be 1 or 0");
+                            false
+                        }
+                    };
+                    Tag::MsgParamShouldShareStreak(should_share)
+                }
+                None => Tag::MsgParamShouldShareStreak(false),
+            },
+            "msg-param-sub-plan" => match tag_value {
+                Some(value) => Tag::MsgParamSubPlan(value.to_string()),
+                None => {
+                    eprintln!("Should have a msg-param-sub-plan");
+                    Tag::MsgParamSubPlan(String::from(""))
+                }
+            },
+            "msg-param-sub-plan-name" => match tag_value {
+                Some(value) => Tag::MsgParamSubPlanName(value.to_string()),
+                None => {
+                    eprintln!("Should have a msg-param-sub-plan-name");
+                    Tag::MsgParamSubPlanName(String::from(""))
+                }
+            },
             "r9k" => match tag_value {
                 Some(value) => {
                     let r9k = match value {
@@ -761,6 +874,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::Subscriber(subscriber)
                 }
                 None => Tag::Subscriber(false),
+            },
+            "system-msg" => match tag_value {
+                Some(value) => Tag::SystemMsg(value.to_string()),
+                None => {
+                    eprintln!("Should have a system-message");
+                    Tag::SystemMsg(String::from(""))
+                }
             },
             "target-msg-id" => match tag_value {
                 Some(value) => Tag::TargetMsgId(value.to_string()),
@@ -881,6 +1001,10 @@ fn parse_command(raw_command: &str) -> Command {
         "ROOMSTATE" => {
             let channel = command_parts.next().expect("This should exist");
             Command::ROOMSTATE(channel.to_string())
+        }
+        "USERNOTICE" => {
+            let channel = command_parts.next().expect("This should exist");
+            Command::USERNOTICE(channel.to_string())
         }
         _ => Command::UNSUPPORTED,
     }
