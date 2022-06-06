@@ -58,16 +58,16 @@ fn message_with_tags() {
         Some(String::from("petsgomoo")),
         String::from("petsgomoo@petsgomoo.tmi.twitch.tv"),
     );
-    let expected_command = Command::PRIVMSG(String::from("#petsgomoo"));
-    let expected_bot_command: Option<BotCommand> = None;
-    let expected_parameters = vec![String::from("DansGame")];
+    let expected_command = Command::PRIVMSG {
+        channel: String::from("petsgomoo"),
+        message: String::from("DansGame"),
+        bot_command: None,
+        tags: Some(expected_tags),
+    };
 
     let expected_parsed_message = ParsedTwitchMessage {
-        tags: expected_tags,
         source: Some(expected_source),
         command: expected_command,
-        bot_command: expected_bot_command,
-        parameters: Some(expected_parameters),
     };
 
     assert_eq!(actual, expected_parsed_message);
@@ -90,30 +90,35 @@ fn test_parse_message() {
 
     let result = parse_message(message);
 
-    let expected_command = Command::PRIVMSG(String::from("#lovingt3s"));
-
     let expected_bot_command = BotCommand::new(String::from("dilly"), vec![String::from("dally")]);
 
-    let expected_parameters = vec![String::from("!dilly"), String::from("dally")];
+    let expected_command = Command::PRIVMSG {
+        channel: String::from("lovingt3s"),
+        message: String::from("!dilly dally"),
+        bot_command: Some(expected_bot_command),
+        tags: None,
+    };
 
     let expected_source = Source::new(
         Some(String::from("lovingt3s")),
         String::from("lovingt3s@lovingt3s.tmi.twitch.tv"),
     );
 
-    let actual_command = result.command;
-    let actual_bot_command = result.bot_command;
-    let actual_parameters = result.parameters;
-    let actual_source = result.source;
+    let expected = ParsedTwitchMessage {
+        source: Some(expected_source),
+        command: expected_command,
+    };
 
-    assert_eq!(actual_command, expected_command);
+    assert_eq!(result, expected);
+}
 
-    assert!(actual_bot_command.is_some());
-    assert_eq!(actual_bot_command.unwrap(), expected_bot_command);
+#[test]
+fn multiple_messages() {
+    let message = ":joxtabot!joxtabot@joxtabot.tmi.twitch.tv JOIN #joxtacy\r\n:joxtabot.tmi.twitch.tv 353 joxtabot = #joxtacy :joxtabot\r\n:joxtabot.tmi.twitch.tv 366 joxtabot #joxtacy :End of /NAMES list\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/membership\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/tags twitch.tv/commands";
 
-    assert!(actual_parameters.is_some());
-    assert_eq!(actual_parameters.unwrap(), expected_parameters);
+    let messages: Vec<&str> = message.split("\r\n").collect();
 
-    assert!(actual_source.is_some());
-    assert_eq!(actual_source.unwrap(), expected_source);
+    let mut expected_messages: Vec<ParsedTwitchMessage> = vec![];
+
+    panic!("IMPLEMENT ME!!!");
 }

@@ -8,11 +8,8 @@ fn message_without_tags() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        command: Command::GLOBALUSERSTATE,
-        bot_command: None,
-        parameters: None,
+        command: Command::GLOBALUSERSTATE { tags: None },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        tags: HashMap::new(),
     };
 
     assert_eq!(actual, expected);
@@ -47,16 +44,15 @@ fn message_with_tags() {
     );
     expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Admin));
 
-    let expected_command = Command::GLOBALUSERSTATE;
+    let expected_command = Command::GLOBALUSERSTATE {
+        tags: Some(expected_tags),
+    };
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
     let expected = ParsedTwitchMessage {
-        bot_command: None,
         source: Some(expected_source),
         command: expected_command,
-        parameters: None,
-        tags: expected_tags,
     };
 
     assert_eq!(actual, expected);

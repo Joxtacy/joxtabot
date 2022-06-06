@@ -24,18 +24,17 @@ fn test_perma_ban_user_message() {
         Tag::TmiSentTs(String::from("1642715756806")),
     );
 
-    let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+    let expected_command = Command::CLEARCHAT {
+        channel: String::from("dallas"),
+        user: Some(String::from("ronni")),
+        tags: Some(expected_tags),
+    };
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
-    let expected_parameters = vec![String::from("ronni")];
-
     let expected = ParsedTwitchMessage {
         command: expected_command,
-        tags: expected_tags,
         source: Some(expected_source),
-        bot_command: None,
-        parameters: Some(expected_parameters),
     };
 
     assert_eq!(actual, expected);
@@ -60,16 +59,17 @@ fn test_clear_message_from_chat_room() {
         Tag::TmiSentTs(String::from("1642715695392")),
     );
 
-    let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+    let expected_command = Command::CLEARCHAT {
+        channel: String::from("dallas"),
+        user: None,
+        tags: Some(expected_tags),
+    };
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
-        tags: expected_tags,
         source: Some(expected_source),
-        bot_command: None,
-        parameters: None,
     };
 
     assert_eq!(actual, expected);
@@ -99,18 +99,17 @@ fn test_timeout_user() {
     );
     expected_tags.insert(String::from("ban-duration"), Tag::BanDuration(350));
 
-    let expected_command = Command::CLEARCHAT(String::from("#dallas"));
+    let expected_command = Command::CLEARCHAT {
+        channel: String::from("dallas"),
+        user: Some(String::from("ronni")),
+        tags: Some(expected_tags),
+    };
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
-    let expected_parameters = vec![String::from("ronni")];
-
     let expected = ParsedTwitchMessage {
         command: expected_command,
-        tags: expected_tags,
         source: Some(expected_source),
-        bot_command: None,
-        parameters: Some(expected_parameters),
     };
 
     assert_eq!(actual, expected);

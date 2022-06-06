@@ -8,18 +8,12 @@ fn without_tags() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        bot_command: None,
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        parameters: Some(vec![
-            String::from("Great"),
-            String::from("stream"),
-            String::from("--"),
-            String::from("keep"),
-            String::from("it"),
-            String::from("up!"),
-        ]),
-        command: Command::USERNOTICE(String::from("#dallas")),
-        tags: HashMap::new(),
+        command: Command::USERNOTICE {
+            channel: String::from("dallas"),
+            message: Some(String::from("Great stream -- keep it up!")),
+            tags: None,
+        },
     };
 
     assert_eq!(actual, expected);
@@ -95,18 +89,12 @@ fn ronni_resubscribe() {
     );
     expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
     let expected = ParsedTwitchMessage {
-        bot_command: None,
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        parameters: Some(vec![
-            String::from("Great"),
-            String::from("stream"),
-            String::from("--"),
-            String::from("keep"),
-            String::from("it"),
-            String::from("up!"),
-        ]),
-        command: Command::USERNOTICE(String::from("#dallas")),
-        tags: expected_tags,
+        command: Command::USERNOTICE {
+            channel: String::from("forstycup"),
+            message: Some(String::from("Great stream -- keep it up!")),
+            tags: Some(expected_tags),
+        },
     };
 
     assert_eq!(actual, expected);
@@ -181,11 +169,12 @@ fn tww2_gift_sub_to_mr_woodchuck() {
     );
     expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
     let expected = ParsedTwitchMessage {
-        bot_command: None,
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        parameters: None,
-        command: Command::USERNOTICE(String::from("#forstycup")),
-        tags: expected_tags,
+        command: Command::USERNOTICE {
+            channel: String::from("forstycup"),
+            tags: Some(expected_tags),
+            message: None,
+        },
     };
 
     assert_eq!(actual, expected);

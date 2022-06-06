@@ -22,18 +22,17 @@ fn test_clear_single_message() {
         Tag::TmiSentTs(String::from("1642720582342")),
     );
 
-    let expected_command = Command::CLEARMSG(String::from("#dallas"));
+    let expected_command = Command::CLEARMSG {
+        channel: String::from("dallas"),
+        message: String::from("HeyGuys"),
+        tags: Some(expected_tags),
+    };
 
     let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
 
-    let expected_parameters = vec![String::from("HeyGuys")];
-
     let expected = ParsedTwitchMessage {
         command: expected_command,
-        tags: expected_tags,
         source: Some(expected_source),
-        bot_command: None,
-        parameters: Some(expected_parameters),
     };
 
     assert_eq!(actual, expected);

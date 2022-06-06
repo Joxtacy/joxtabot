@@ -9,19 +9,12 @@ fn message_deleted() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        tags: HashMap::new(),
-        parameters: Some(vec![
-            String::from("The"),
-            String::from("message"),
-            String::from("from"),
-            String::from("foo"),
-            String::from("is"),
-            String::from("now"),
-            String::from("deleted."),
-        ]),
-        command: Command::NOTICE(String::from("#bar")),
+        command: Command::NOTICE {
+            channel: String::from("bar"),
+            message: String::from("The message from foo is now deleted."),
+            tags: None,
+        },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        bot_command: None,
     };
 
     assert_eq!(actual, expected);
@@ -34,19 +27,12 @@ fn user_banned() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        tags: HashMap::new(),
-        parameters: Some(vec![
-            String::from("foo"),
-            String::from("is"),
-            String::from("now"),
-            String::from("banned"),
-            String::from("from"),
-            String::from("this"),
-            String::from("channel."),
-        ]),
-        command: Command::NOTICE(String::from("#bar")),
+        command: Command::NOTICE {
+            channel: String::from("bar"),
+            message: String::from("foo is now banned from this channel."),
+            tags: None,
+        },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        bot_command: None,
     };
 
     assert_eq!(actual, expected);
@@ -68,20 +54,12 @@ fn unable_to_send_whisper() {
         Tag::TargetUserId(String::from("12345678")),
     );
     let expected = ParsedTwitchMessage {
-        tags: expected_tags,
-        parameters: Some(vec![
-            String::from("Your"),
-            String::from("settings"),
-            String::from("prevent"),
-            String::from("you"),
-            String::from("from"),
-            String::from("sending"),
-            String::from("this"),
-            String::from("whisper."),
-        ]),
-        command: Command::NOTICE(String::from("#bar")),
+        command: Command::NOTICE {
+            channel: String::from("bar"),
+            message: String::from("Your settings prevent you from sending this whisper."),
+            tags: Some(expected_tags),
+        },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        bot_command: None,
     };
 
     assert_eq!(actual, expected);

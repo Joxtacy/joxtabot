@@ -91,11 +91,16 @@ mod tests {
     fn test_parse_command() {
         // PRIVMSG
         {
-            let message = "PRIVMSG #lovingt3s";
+            let message = "PRIVMSG #lovingt3s :herp derp";
 
-            let result = parse_command(message);
+            let result = parse_command(message, "");
 
-            let expected_command = Command::PRIVMSG(String::from("#lovingt3s"));
+            let expected_command = Command::PRIVMSG {
+                channel: String::from("lovingt3s"),
+                message: String::from("herp derp"),
+                bot_command: None,
+                tags: None,
+            };
 
             assert_eq!(result, expected_command);
         }
@@ -104,7 +109,7 @@ mod tests {
         {
             let message = "PING :tmi.twitch.tv";
 
-            let result = parse_command(message);
+            let result = parse_command(message, "");
 
             let expected_command = Command::PING;
 
@@ -147,41 +152,21 @@ mod tests {
             assert!(result.is_none());
         }
     }
-
-    #[test]
-    fn test_parse_parameters() {
-        // Non empty string
-        {
-            let message = "!dilly dally";
-
-            let actual_parameters = parse_parameters(message);
-
-            let expected_parameters = vec![String::from("!dilly"), String::from("dally")];
-
-            assert_eq!(actual_parameters, expected_parameters);
-        }
-
-        // Empty string
-        {
-            let message = "";
-
-            let actual_parameters = parse_parameters(message);
-
-            let expected_parameters = vec![String::from("")];
-
-            assert_eq!(actual_parameters, expected_parameters);
-        }
-    }
 }
 
 /// Representation of the message command.
-// TODO: What are the values in the enums?
-// TODO: Might change each command to have the full message information directly in it.
 #[derive(PartialEq, Debug)]
 pub enum Command {
-    /// A JOIN type message. The `String` is the channel name.
+    /// This is the standard `JOIN` message that you receive when a user joins the chat room.
+    ///
+    /// #Prototype
+    /// `:<user>!<user>@<user>.tmi.twitch.tv JOIN #<channel>`
     JOIN(String),
-    /// A PART type message. The `String` is the channel name.
+
+    /// This is the standard `PART` message that you receive when a user leaves a chat room.
+    ///
+    /// #Prototype
+    /// `:<user>!<user>@<user>.tmi.twitch.tv PART #<channel>`
     PART(String),
 
     /// Sent to indicate the outcome of an action like banning a user.
@@ -211,7 +196,11 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    NOTICE(String),
+    NOTICE {
+        channel: String,
+        message: String,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when a moderator (or bot with moderator privileges) removes all messages from the chat room or removes all messages for the specified user.
     ///
@@ -240,7 +229,11 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    CLEARCHAT(String),
+    CLEARCHAT {
+        channel: String,
+        user: Option<String>,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when a bot with moderator privileges deletes a single message from the chat room.
     ///
@@ -268,7 +261,11 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    CLEARMSG(String),
+    CLEARMSG {
+        channel: String,
+        message: String,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when a channel starts or stops hosting viewers from another channel.
     ///
@@ -305,9 +302,20 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    HOSTTARGET(String),
+    HOSTTARGET {
+        channel: String,
+        hosting_channel: String,
+        number_of_viewers: usize,
+    },
+
     /// A PRIVMSG type message. The `String` is the channel name.
-    PRIVMSG(String),
+    PRIVMSG {
+        channel: String,
+        message: String,
+        bot_command: Option<BotCommand>,
+        tags: Option<HashMap<String, Tag>>,
+    },
+
     /// A PING type message.
     PING,
     // TODO: What is the `bool`?
@@ -318,7 +326,7 @@ pub enum Command {
     ///
     /// # Prototype
     /// `:tmi.twitch.tv GLOBALUSERSTATE`
-    GLOBALUSERSTATE,
+    GLOBALUSERSTATE { tags: Option<HashMap<String, Tag>> },
 
     /// Sent when events like someone subscribing to the channel occurs.
     ///
@@ -348,7 +356,11 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    USERNOTICE(String),
+    USERNOTICE {
+        channel: String,
+        message: Option<String>,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when the bot joins a channel or sends a `PRIVMSG` message.
     ///
@@ -369,7 +381,10 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    USERSTATE(String),
+    USERSTATE {
+        channel: String,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when the bot joins a channel or when the channel’s chat settings change.
     ///
@@ -400,7 +415,10 @@ pub enum Command {
     ///     </tr>
     ///   </tbody>
     /// </table>
-    ROOMSTATE(String),
+    ROOMSTATE {
+        channel: String,
+        tags: Option<HashMap<String, Tag>>,
+    },
 
     /// Sent when the Twitch IRC server needs to terminate the connection for maintenance reasons. This gives your bot a chance to perform minimal clean up and save state before the server terminates the connection. The amount of time between receiving the message and the server closing the connection is indeterminate.
     ///
@@ -409,6 +427,37 @@ pub enum Command {
     /// # Prototype
     /// `:tmi.twitch.tv RECONNECT`
     RECONNECT,
+
+    ///Sent when a `WHISPER` message is directed specifically to your bot. Your bot will never receive whispers sent to other users.
+    ///
+    /// # Prototype
+    /// `:<to-user>!<to-user>@<to-user>.tmi.twitch.tv WHISPER <from-user> :<message>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>from-user</code></td>
+    ///       <td>The user that's sending the whisper message.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>to-user</code></td>
+    ///       <td>The user that's receiving the whisper message.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
+    // TODO: Needs to be implemented properly, and maybe separately.
+    WHISPER {
+        from_user: String,
+        message: String,
+        to_user: String,
+    },
+
     // TODO: what is the `Option<String>`?
     /// A NUMBER type message. The `u32` is the message number.
     NUMBER(u32, Option<String>),
@@ -454,6 +503,7 @@ pub enum Badge {
 }
 
 /// Representation of the source of the message.
+// TODO: Rewrite with focus on host. Nick is often not available.
 #[derive(PartialEq, Debug)]
 pub struct Source {
     nick: Option<String>,
@@ -641,16 +691,13 @@ pub enum Tag {
 }
 
 /// Represents a vector of strings that has been separated by whitespaces.
-type Parameters = Vec<String>;
+pub type Parameters = Vec<String>;
 
 /// Represents a message parsed into an easy to work with struct.
 #[derive(PartialEq, Debug)]
 pub struct ParsedTwitchMessage {
-    pub tags: HashMap<String, Tag>,
     pub source: Option<Source>,
     pub command: Command,
-    pub parameters: Option<Parameters>,
-    pub bot_command: Option<BotCommand>,
 }
 
 /// Parses a message from a Twitch IRC Chat
@@ -690,12 +737,10 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
             .find(' ')
             .expect("There should be more to a message with badges");
 
-        let raw_tags = &message[1..end_index];
-
         idx = end_index + 1;
-        parse_tags(raw_tags)
+        &message[1..end_index]
     } else {
-        HashMap::new()
+        ""
     };
 
     let message = &message[idx..];
@@ -717,44 +762,14 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
         None
     };
 
-    let message = &message[idx..];
-
     // Get the command component
+    // At this point it is just the rest of the message.
 
-    // Looking for the parameters part of the message.
-    // But not all messages include the parameter list. In that case we default to the end of the string.
-    let end_index = message.find(':').unwrap_or(message.len());
+    let raw_command = &message[idx..];
 
-    let raw_command = &message[..end_index];
+    let command = parse_command(raw_command, tags);
 
-    let command = parse_command(raw_command);
-
-    // Get the parameters component.
-
-    let raw_parameters = if end_index != message.len() {
-        idx = end_index + 1;
-        Some(&message[idx..])
-    } else {
-        None
-    };
-
-    let parameters = match raw_parameters {
-        Some(params) => Some(parse_parameters(params)),
-        None => None,
-    };
-
-    let bot_command = match raw_parameters {
-        Some(params) => parse_bot_command(params),
-        None => None,
-    };
-
-    ParsedTwitchMessage {
-        tags,
-        bot_command,
-        command,
-        parameters,
-        source,
-    }
+    ParsedTwitchMessage { command, source }
 }
 
 fn parse_badges(raw_badges: &str) -> Vec<Badge> {
@@ -855,9 +870,13 @@ fn parse_emote_sets(raw_emote_sets: &str) -> Vec<usize> {
 }
 
 fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
-    let parsed_tags = raw_tags.split(';');
-
     let mut tags: HashMap<String, Tag> = HashMap::new();
+
+    if raw_tags.is_empty() {
+        return tags;
+    }
+
+    let parsed_tags = raw_tags.split(';');
 
     for parsed_tag in parsed_tags {
         let mut split_tag = parsed_tag.split('=');
@@ -1212,49 +1231,104 @@ fn parse_source(raw_source: &str) -> Source {
     }
 }
 
-fn parse_parameters(raw_parameters: &str) -> Parameters {
-    let split_params = raw_parameters.split(" ");
-    let parameters: Vec<String> = split_params.map(|param| String::from(param)).collect();
-    parameters
-}
+fn parse_command(raw_command: &str, raw_tags: &str) -> Command {
+    let parameters_index = raw_command.find(':').unwrap_or(raw_command.len());
+    let channel_index = raw_command.find('#').unwrap_or(parameters_index);
 
-fn parse_command(raw_command: &str) -> Command {
-    let mut command_parts = raw_command.split(' ');
+    let channel = if channel_index != parameters_index {
+        let channel = raw_command[channel_index + 1..parameters_index].trim();
+        channel
+    } else {
+        ""
+    };
 
-    let command = command_parts.next().expect("This should be the command");
+    let parameters = if parameters_index != raw_command.len() {
+        let parameters = raw_command[parameters_index + 1..].trim();
+        parameters
+    } else {
+        ""
+    };
+
+    let command = raw_command[..channel_index].trim();
+
+    let tags = if raw_tags.is_empty() {
+        None
+    } else {
+        Some(parse_tags(raw_tags))
+    };
 
     match command {
-        "CLEARCHAT" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::CLEARCHAT(channel.to_string())
-        }
-        "CLEARMSG" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::CLEARMSG(channel.to_string())
-        }
-        "GLOBALUSERSTATE" => Command::GLOBALUSERSTATE,
+        "CLEARCHAT" => Command::CLEARCHAT {
+            channel: channel.to_string(),
+            user: if parameters.is_empty() {
+                None
+            } else {
+                Some(parameters.to_string())
+            },
+            tags,
+        },
+        "CLEARMSG" => Command::CLEARMSG {
+            channel: channel.to_string(),
+            message: parameters.to_string(),
+            tags,
+        },
+        "GLOBALUSERSTATE" => Command::GLOBALUSERSTATE { tags },
         "HOSTTARGET" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::HOSTTARGET(channel.to_string())
+            let mut params = parameters.split(' ');
+            let hosted_channel = params.next().unwrap_or_else(|| {
+                eprintln!("Should have a channel name or '-'");
+                ""
+            });
+            let number_of_viewers = params
+                .next()
+                .unwrap_or_else(|| {
+                    eprintln!("Should have amount of viewers");
+                    "0"
+                })
+                .parse::<usize>()
+                .unwrap_or_else(|_err| {
+                    eprintln!("Number of viewers should be a `usize`");
+                    0
+                });
+            Command::HOSTTARGET {
+                hosting_channel: channel.to_string(),
+                channel: hosted_channel.to_string(),
+                number_of_viewers,
+            }
         }
-        "NOTICE" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::NOTICE(channel.to_string())
-        }
+        "NOTICE" => Command::NOTICE {
+            channel: channel.to_string(),
+            message: parameters.to_string(),
+            tags,
+        },
         "PING" => Command::PING,
         "PRIVMSG" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::PRIVMSG(channel.to_string())
+            let bot_command = parse_bot_command(parameters);
+            Command::PRIVMSG {
+                channel: channel.to_string(),
+                message: parameters.to_string(),
+                bot_command,
+                tags,
+            }
         }
         "RECONNECT" => Command::RECONNECT,
-        "ROOMSTATE" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::ROOMSTATE(channel.to_string())
-        }
-        "USERNOTICE" => {
-            let channel = command_parts.next().expect("This should exist");
-            Command::USERNOTICE(channel.to_string())
-        }
+        "ROOMSTATE" => Command::ROOMSTATE {
+            channel: channel.to_string(),
+            tags,
+        },
+        "USERNOTICE" => Command::USERNOTICE {
+            channel: channel.to_string(),
+            message: if parameters.is_empty() {
+                None
+            } else {
+                Some(parameters.to_string())
+            },
+            tags,
+        },
+        "USERSTATE" => Command::USERSTATE {
+            channel: channel.to_string(),
+            tags,
+        },
         _ => Command::UNSUPPORTED,
     }
 }

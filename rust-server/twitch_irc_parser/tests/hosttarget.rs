@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use twitch_irc_parser::*;
 
 #[test]
@@ -9,11 +7,12 @@ fn starting_host() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        bot_command: None,
-        command: Command::HOSTTARGET(String::from("#abc")),
-        tags: HashMap::new(),
+        command: Command::HOSTTARGET {
+            channel: String::from("xyz"),
+            hosting_channel: String::from("abc"),
+            number_of_viewers: 10,
+        },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        parameters: Some(vec![String::from("xyz"), String::from("10")]),
     };
 
     assert_eq!(actual, expected);
@@ -26,11 +25,12 @@ fn ending_host() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        bot_command: None,
-        command: Command::HOSTTARGET(String::from("#abc")),
-        tags: HashMap::new(),
+        command: Command::HOSTTARGET {
+            channel: String::from("-"),
+            hosting_channel: String::from("abc"),
+            number_of_viewers: 10,
+        },
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        parameters: Some(vec![String::from("-"), String::from("10")]),
     };
 
     assert_eq!(actual, expected);

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use twitch_irc_parser::*;
 
 #[test]
@@ -9,9 +8,6 @@ fn reconnect() {
 
     let expected = ParsedTwitchMessage {
         source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
-        tags: HashMap::new(),
-        parameters: None,
-        bot_command: None,
         command: Command::RECONNECT,
     };
 
