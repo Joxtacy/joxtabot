@@ -14,7 +14,7 @@ fn message_deleted() {
             message: String::from("The message from foo is now deleted."),
             tags: None,
         },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);
@@ -32,7 +32,7 @@ fn user_banned() {
             message: String::from("foo is now banned from this channel."),
             tags: None,
         },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);
@@ -59,7 +59,7 @@ fn unable_to_send_whisper() {
             message: String::from("Your settings prevent you from sending this whisper."),
             tags: Some(expected_tags),
         },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);

@@ -55,8 +55,8 @@ fn message_with_tags() {
 
     let expected_tags = create_tags();
     let expected_source = Source::new(
-        Some(String::from("petsgomoo")),
         String::from("petsgomoo@petsgomoo.tmi.twitch.tv"),
+        Some(String::from("petsgomoo")),
     );
     let expected_command = Command::PRIVMSG {
         channel: String::from("petsgomoo"),
@@ -100,8 +100,8 @@ fn test_parse_message() {
     };
 
     let expected_source = Source::new(
-        Some(String::from("lovingt3s")),
         String::from("lovingt3s@lovingt3s.tmi.twitch.tv"),
+        Some(String::from("lovingt3s")),
     );
 
     let expected = ParsedTwitchMessage {

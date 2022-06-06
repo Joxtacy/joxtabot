@@ -7,7 +7,7 @@ fn reconnect() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
         command: Command::RECONNECT,
     };
 

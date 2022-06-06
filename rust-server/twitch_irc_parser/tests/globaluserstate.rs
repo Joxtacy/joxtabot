@@ -9,7 +9,7 @@ fn message_without_tags() {
 
     let expected = ParsedTwitchMessage {
         command: Command::GLOBALUSERSTATE { tags: None },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);
@@ -48,7 +48,7 @@ fn message_with_tags() {
         tags: Some(expected_tags),
     };
 
-    let expected_source = Source::new(None, String::from("tmi.twitch.tv"));
+    let expected_source = Source::new(String::from("tmi.twitch.tv"), None);
 
     let expected = ParsedTwitchMessage {
         source: Some(expected_source),

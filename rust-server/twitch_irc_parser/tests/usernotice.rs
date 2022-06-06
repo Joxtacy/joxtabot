@@ -8,7 +8,7 @@ fn without_tags() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
         command: Command::USERNOTICE {
             channel: String::from("dallas"),
             message: Some(String::from("Great stream -- keep it up!")),
@@ -89,7 +89,7 @@ fn ronni_resubscribe() {
     );
     expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
         command: Command::USERNOTICE {
             channel: String::from("forstycup"),
             message: Some(String::from("Great stream -- keep it up!")),
@@ -169,7 +169,7 @@ fn tww2_gift_sub_to_mr_woodchuck() {
     );
     expected_tags.insert(String::from("user-type"), Tag::UserType(UserType::Staff));
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
         command: Command::USERNOTICE {
             channel: String::from("forstycup"),
             tags: Some(expected_tags),

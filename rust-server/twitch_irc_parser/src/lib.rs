@@ -506,8 +506,8 @@ pub enum Badge {
 // TODO: Rewrite with focus on host. Nick is often not available.
 #[derive(PartialEq, Debug)]
 pub struct Source {
-    nick: Option<String>,
-    host: String,
+    pub nick: Option<String>,
+    pub host: String,
 }
 
 impl Source {
@@ -520,7 +520,7 @@ impl Source {
     ///     String::from("joxtacy@joxtacy.tmi.twitch.tv")
     /// );
     /// ```
-    pub fn new(nick: Option<String>, host: String) -> Source {
+    pub fn new(host: String, nick: Option<String>) -> Source {
         Source { nick, host }
     }
 }

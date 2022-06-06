@@ -12,7 +12,7 @@ fn starting_host() {
             hosting_channel: String::from("abc"),
             number_of_viewers: 10,
         },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);
@@ -30,7 +30,7 @@ fn ending_host() {
             hosting_channel: String::from("abc"),
             number_of_viewers: 10,
         },
-        source: Some(Source::new(None, String::from("tmi.twitch.tv"))),
+        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
     };
 
     assert_eq!(actual, expected);
