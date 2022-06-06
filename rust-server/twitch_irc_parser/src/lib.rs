@@ -225,7 +225,7 @@ pub enum Command {
     ///     </tr>
     ///     </tr>
     ///       <td><code>user</code></td>
-    ///       <td>The login name of the user whose messages were removed from the chat room because they were banned or put in a timeout.</td>
+    ///       <td>Optional: The login name of the user whose messages were removed from the chat room because they were banned or put in a timeout.</td>
     ///     </tr>
     ///   </tbody>
     /// </table>
