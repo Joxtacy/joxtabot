@@ -350,29 +350,82 @@ pub enum Tag {
     /// Currently only holds how long a user has been subscribed in months.
     /// `@badge-info=subscriber/8`
     BadgeInfo(usize),
-    Badges(Vec<Badge>),  // List of badges
-    BanDuration(usize),  // Duration in seconds
-    Color(String),       // Hex color. Ex. #B000B5
-    DisplayName(String), // Display name of the chatter
-    EmoteOnly(bool),     // True if emote only mode is on
+    Badges(Vec<Badge>), // List of badges
+    BanDuration(usize), // Duration in seconds
+
+    /// The color of the user’s name in the chat room. This is a hexadecimal RGB color code in the form, #<RGB>. This tag may be empty if it is never set.
+    Color(String),
+
+    /// The user’s display name, escaped as described in the [IRCv3 spec](https://ircv3.net/specs/core/message-tags-3.2.html). This tag may be empty if it is never set.
+    DisplayName(String),
+
+    EmoteOnly(bool), // True if emote only mode is on
     /// An integer value that determines whether only followers can post messages in the chat room. The value indicates how long, in minutes, the user must have followed the broadcaster before posting chat messages. If the value is -1, the chat room is not restricted to followers only.
     FollowersOnly(i32),
     Emotes(Vec<Emote>),
     EmoteSets(Vec<usize>), // List of emote sets
-    Id(String),            // Id of the message
-    Login(String),         // The login of the user whos message is being cleared
-    Mod(bool),             // True if the user is a moderator
+
+    /// An ID that uniquely identifies this message.
+    Id(String),
+
+    /// The login name of the user whose action generated the message.
+    Login(String),
+
+    /// A Boolean value that determines whether the user is a moderator. Is true (1) if the user is a moderator; otherwise, false (0).
+    Mod(bool),
+
     /// An ID that you can use to programmatically determine the action’s outcome. For a list of possible IDs, see [NOTICE Message IDs](https://dev.twitch.tv/docs/irc/msg-id)
     MsgId(String),
+
+    /// Included only with `sub` and `resub` notices.
+    ///
+    /// The total number of months the user has subscribed. This is the same as `msg-param-months` but sent for different types of user notices.
     MsgParamCumulativeMonths(usize),
+
+    /// Included only with `subgift` notices.
+    ///
+    /// The total number of months the user has subscribed. This is the same as `msg-param-cumulative-months` but sent for different types of user notices.
     MsgParamMonths(usize),
+
+    /// Included only with `subgift` notices.
+    ///
+    /// The display name of the subscription gift recipient.
     MsgParamRecipientDisplayName(String),
+
+    /// Included only with `subgift` notices.
+    ///
+    /// The user ID of the subscription gift recipient.
     MsgParamRecipientId(String),
+
+    /// Included only with `subgift` notices.
+    ///
+    /// The user name of the subscription gift recipient.
     MsgParamRecipientName(String),
+
+    /// Included only with `sub` and `resub` notices.
+    ///
+    /// The number of consecutive months the user has subscribed. This is zero (0) if `msg-param-should-share-streak` is 0.
     MsgParamStreakMonths(usize),
+
+    /// Included only with `sub` and `resub` notices.
+    ///
+    /// A Boolean value that indicates whether the user wants their streaks shared.
     MsgParamShouldShareStreak(bool),
+
+    /// Included only with `sub`, `resub` and `subgift` notices.
+    ///
+    /// The type of subscription plan being used. Possible values are:
+    /// * Prime — Amazon Prime subscription
+    /// * 1000 — First level of paid subscription
+    /// * 2000 — Second level of paid subscription
+    /// * 3000 — Third level of paid subscription
     MsgParamSubPlan(String),
+
+    /// Included only with `sub`, `resub` and `subgift` notices.
+    ///
+    /// The display name of the subscription plan. This may be a default name or one created by the channel owner.
     MsgParamSubPlanName(String),
+
     /// A Boolean value that determines whether a user’s messages must be unique. Applies only to messages with more than 9 characters. Is true (1) if users must post unique messages; otherwise, false (0).
     R9K(bool),
     RoomId(String), // Id of the chat room
