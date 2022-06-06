@@ -123,10 +123,7 @@ fn tww2_gift_sub_to_mr_woodchuck() {
     expected_tags.insert(String::from("badge-info"), Tag::BadgeInfo(0));
     expected_tags.insert(
         String::from("badges"),
-        Tag::Badges(vec![
-            Badge::Staff(1),
-            Badge::Premium(1),
-        ]),
+        Tag::Badges(vec![Badge::Staff(1), Badge::Premium(1)]),
     );
     expected_tags.insert(String::from("color"), Tag::Color(String::from("#0000FF")));
     expected_tags.insert(
@@ -141,10 +138,7 @@ fn tww2_gift_sub_to_mr_woodchuck() {
     expected_tags.insert(String::from("login"), Tag::Login(String::from("tww2")));
     expected_tags.insert(String::from("mod"), Tag::Mod(false));
     expected_tags.insert(String::from("msg-id"), Tag::MsgId(String::from("subgift")));
-    expected_tags.insert(
-        String::from("msg-param-months"),
-        Tag::MsgParamMonths(1),
-    );
+    expected_tags.insert(String::from("msg-param-months"), Tag::MsgParamMonths(1));
     expected_tags.insert(
         String::from("msg-param-recipient-display-name"),
         Tag::MsgParamRecipientDisplayName(String::from("Mr_Woodchuck")),
@@ -172,7 +166,9 @@ fn tww2_gift_sub_to_mr_woodchuck() {
     expected_tags.insert(String::from("subscriber"), Tag::Subscriber(false));
     expected_tags.insert(
         String::from("system-msg"),
-        Tag::SystemMsg(String::from(r"TWW2\sgifted\sa\sTier\s1\ssub\sto\sMr_Woodchuck!")),
+        Tag::SystemMsg(String::from(
+            r"TWW2\sgifted\sa\sTier\s1\ssub\sto\sMr_Woodchuck!",
+        )),
     );
     expected_tags.insert(
         String::from("tmi-sent-ts"),

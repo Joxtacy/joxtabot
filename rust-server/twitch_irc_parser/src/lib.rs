@@ -330,7 +330,7 @@ impl Emote {
 #[derive(PartialEq, Debug)]
 pub enum UserType {
     /// A normal user.
-    Normal,// ""
+    Normal, // ""
 
     /// A Twitch administrator.
     Admin, // "admin"
@@ -805,28 +805,28 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     eprintln!("Should have a value");
                     Tag::MsgParamMonths(0)
                 }
-            }
+            },
             "msg-param-recipient-display-name" => match tag_value {
                 Some(value) => Tag::MsgParamRecipientDisplayName(value.to_string()),
                 None => {
                     eprintln!("Should have a value");
                     Tag::MsgParamRecipientDisplayName(String::from(""))
                 }
-            }
+            },
             "msg-param-recipient-id" => match tag_value {
                 Some(value) => Tag::MsgParamRecipientId(value.to_string()),
                 None => {
                     eprintln!("Should have a value");
                     Tag::MsgParamRecipientId(String::from(""))
                 }
-            }
+            },
             "msg-param-recipient-name" => match tag_value {
                 Some(value) => Tag::MsgParamRecipientName(value.to_string()),
                 None => {
                     eprintln!("Should have a value");
                     Tag::MsgParamRecipientName(String::from(""))
                 }
-            }
+            },
             "msg-param-streak-months" => match tag_value {
                 Some(value) => {
                     let months = value.parse::<usize>().expect("Should have months");
