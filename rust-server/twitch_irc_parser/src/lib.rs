@@ -183,13 +183,128 @@ pub enum Command {
     JOIN(String),
     /// A PART type message. The `String` is the channel name.
     PART(String),
-    /// A NOTICE type message. The `String` is the channel name.
+
+    /// Sent to indicate the outcome of an action like banning a user.
+    ///
+    /// The Twitch IRC server sends this message when:
+    ///
+    /// * A moderator (or bot with moderator privileges) sends a message with pretty much any of the [chat commands](https://dev.twitch.tv/docs/irc/chat-commands). For example, /emoteonly, /subscribers, /ban or /host.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv NOTICE #<channel> :<message>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The channel (chat room) where the action occurred.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>message</code></td>
+    ///       <td>A message that describes the outcome of the action.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     NOTICE(String),
-    /// A CLEARCHAT type message. The `String` is the channel name.
+
+    /// Sent when a moderator (or bot with moderator privileges) removes all messages from the chat room or removes all messages for the specified user.
+    ///
+    /// The Twitch IRC server sends this message when:
+    /// * A moderator enters the /clear command in the chat room or a bot sends the /clear [chat command](https://dev.twitch.tv/docs/irc/chat-commands) message .
+    /// * A moderator enters the /ban or /timeout command in the chat room or a bot sends the /ban or /timeout chat command message.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv CLEARCHAT #<channel> :<user>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The name of the channel (chat room) where the messages were removed from.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>user</code></td>
+    ///       <td>The login name of the user whose messages were removed from the chat room because they were banned or put in a timeout.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     CLEARCHAT(String),
-    /// A CLEARMSG type message. The `String` is the channel name.
+
+    /// Sent when a bot with moderator privileges deletes a single message from the chat room.
+    ///
+    /// The Twitch IRC server sends this message when:
+    ///
+    /// * The bot sends a /delete chat command message.
+    /// # Prototype
+    /// `:tmi.twitch.tv CLEARMSG #<channel> :<message>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The name of the channel (chat room) where the message were removed from.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>message</code></td>
+    ///       <td>The chat message that was removed.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     CLEARMSG(String),
-    /// A HOSTTARGET type message. The `String` is the channel name.
+
+    /// Sent when a channel starts or stops hosting viewers from another channel.
+    ///
+    /// The Twitch IRC server sends this message when:
+    ///
+    /// A moderator enters the /host or /unhost command in the chat room or a bot with moderator privileges sends a /host or /unhost chat command message.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv HOSTTARGET #<hosting-channel> :[-|<channel>] <number-of-viewers>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>-</code></td>
+    ///       <td>The channel is no longer hosting viewers.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The channel being hosted.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>hosting-channel</code></td>
+    ///       <td>The channel that's hosting the viewers.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>number-of-viewers</code></td>
+    ///       <td>The number of viewers from <channel> that are watching the broadcast.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     HOSTTARGET(String),
     /// A PRIVMSG type message. The `String` is the channel name.
     PRIVMSG(String),
@@ -198,20 +313,101 @@ pub enum Command {
     // TODO: What is the `bool`?
     /// A CAP type message.
     CAP(bool),
-    /// A GLOBALUSERSTATE type message.
+
+    /// Sent after the bot successfully authenticates (by sending the PASS/NICK commands) with the server.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv GLOBALUSERSTATE`
     GLOBALUSERSTATE,
+
     /// Sent when events like someone subscribing to the channel occurs.
     ///
     /// The Twitch IRC server sends this message when:
-    /// A user subscribes to the channel, re-subscribes to the channel, or gifts a subscription to another user.
-    /// Another broadcaster raids the channel. Raid is a Twitch feature that lets broadcasters send their viewers to another channel to help support and grow other members in the community. [Learn more](https://help.twitch.tv/s/article/how-to-use-raids)
-    /// A viewer milestone is celebrated such as a new viewer chatting for the first time.
+    /// * A user subscribes to the channel, re-subscribes to the channel, or gifts a subscription to another user.
+    /// * Another broadcaster raids the channel. Raid is a Twitch feature that lets broadcasters send their viewers to another channel to help support and grow other members in the community. [Learn more](https://help.twitch.tv/s/article/how-to-use-raids)
+    /// * A viewer milestone is celebrated such as a new viewer chatting for the first time.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv USERNOTICE #<channel> :[<message>]`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The name of the channel that the event occurred in.</td>
+    ///     </tr>
+    ///     </tr>
+    ///       <td><code>message</code></td>
+    ///       <td>Optional. The chat message that describes the event.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     USERNOTICE(String),
-    /// A USERSTATE type message. The `String` is the channel name.
+
+    /// Sent when the bot joins a channel or sends a `PRIVMSG` message.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv USERSTATE #<channel>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The name of the channel that the bot joined or sent a PRIVMSG in.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     USERSTATE(String),
-    /// A ROOMSTATE type message. The `String` is the channel name.
+
+    /// Sent when the bot joins a channel or when the channel’s chat settings change.
+    ///
+    /// The Twitch IRC server sends this message when:
+    ///
+    /// * The bot joins a channel
+    /// * A moderator (or bot with moderator privileges) sends a message with one of the following [chat command](https://dev.twitch.tv/docs/irc/chat-commands) messages:
+    ///     * /emoteonly(off)
+    ///     * /followers(off)
+    ///     * /slow(off)
+    ///     * /subscribers(off)
+    ///     * /uniquechat(off)
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv ROOMSTATE #<channel>`
+    ///
+    /// <table>
+    ///   <thead>
+    ///     <tr>
+    ///       <th><strong>Parameter</strong></th>
+    ///       <th><strong>Description</strong></th>
+    ///     </tr>
+    ///   </thead>
+    ///   <tbody>
+    ///     <tr>
+    ///       <td><code>channel</code></td>
+    ///       <td>The name of the channel (chat room) that the room state information applies to.</td>
+    ///     </tr>
+    ///   </tbody>
+    /// </table>
     ROOMSTATE(String),
-    /// A RECONNECT type message.
+
+    /// Sent when the Twitch IRC server needs to terminate the connection for maintenance reasons. This gives your bot a chance to perform minimal clean up and save state before the server terminates the connection. The amount of time between receiving the message and the server closing the connection is indeterminate.
+    ///
+    /// The normal course of action is to reconnect to the Twitch IRC server and rejoin the channels you were previously joined to prior to the server terminating the connection.
+    ///
+    /// # Prototype
+    /// `:tmi.twitch.tv RECONNECT`
     RECONNECT,
     // TODO: what is the `Option<String>`?
     /// A NUMBER type message. The `u32` is the message number.
