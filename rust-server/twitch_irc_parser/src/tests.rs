@@ -1,5 +1,7 @@
 use super::*;
 
+use utils::*;
+
 fn create_tags() -> HashMap<String, Tag> {
     let mut tags = HashMap::new();
 
