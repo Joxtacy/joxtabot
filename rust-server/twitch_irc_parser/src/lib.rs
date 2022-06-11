@@ -560,6 +560,8 @@ pub enum Tag {
     Badges(Vec<Badge>), // List of badges
     BanDuration(usize), // Duration in seconds
 
+    ClientNonce(String),
+
     /// The color of the user’s name in the chat room. This is a hexadecimal RGB color code in the form, #<RGB>. This tag may be empty if it is never set.
     Color(String),
 
@@ -567,6 +569,9 @@ pub enum Tag {
     DisplayName(String),
 
     EmoteOnly(bool), // True if emote only mode is on
+
+    FirstMsg(bool),
+
     /// An integer value that determines whether only followers can post messages in the chat room. The value indicates how long, in minutes, the user must have followed the broadcaster before posting chat messages. If the value is -1, the chat room is not restricted to followers only.
     FollowersOnly(i32),
     Emotes(Vec<Emote>),
@@ -888,6 +893,13 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::Color(String::from(""))
                 }
             },
+            "client-nonce" => match tag_value {
+                Some(value) => Tag::ClientNonce(value.to_string()),
+                None => {
+                    eprintln!("Should have a client-nonce");
+                    Tag::ClientNonce(String::from(""))
+                }
+            },
             "display-name" => match tag_value {
                 Some(value) => Tag::DisplayName(value.to_string()),
                 None => {
@@ -918,6 +930,16 @@ fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
                     Tag::EmoteSets(emote_sets)
                 }
                 None => Tag::EmoteSets(vec![]),
+            },
+            "first-msg" => match tag_value {
+                Some(value) => {
+                    let fisrt_msg = match value {
+                        "1" => true,
+                        _ => false,
+                    };
+                    Tag::FirstMsg(fisrt_msg)
+                }
+                None => Tag::FirstMsg(false),
             },
             "followers-only" => match tag_value {
                 Some(value) => {
