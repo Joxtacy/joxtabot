@@ -21,8 +21,6 @@ pub use types::*;
 ///
 /// # Panics
 ///
-/// When the message lacks a source.
-///
 /// When the message starts with a '@' but has nothing after it.
 ///
 /// # Examples
@@ -35,11 +33,8 @@ pub use types::*;
 /// let parsed = parse_message(message);
 ///
 /// let expected = ParsedTwitchMessage {
-///     tags: HashMap::new(),
 ///     source: None,
 ///     command: Command::PING,
-///     bot_command: None,
-///     parameters: Some(vec![String::from("tmi.twitch.tv")]),
 /// };
 ///
 /// assert_eq!(parsed, expected);
@@ -89,6 +84,49 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
     ParsedTwitchMessage { command, source }
 }
 
+/// Parses a vector of message from a Twitch IRC Chat
+///
+/// # Panics
+///
+/// When the message starts with a '@' but has nothing after it.
+///
+/// # Examples
+///
+/// ```
+/// use std::collections::HashMap;
+/// use twitch_irc_parser::{parse_messages, Command, ParsedTwitchMessage, Source};
+///
+/// let messages = vec![
+///     "PING :tmi.twitch.tv",
+///     ":tmi.twitch.tv HOSTTARGET #abc :xyz 10"
+/// ];
+/// let parsed = parse_messages(messages);
+///
+/// let expected = vec![
+///     ParsedTwitchMessage {
+///         source: None,
+///         command: Command::PING,
+///     },
+///     ParsedTwitchMessage {
+///         source: Some(Source {
+///             host: String::from("tmi.twitch.tv"),
+///             nick: None
+///         }),
+///         command: Command::HOSTTARGET {
+///             channel: String::from("xyz"),
+///             hosting_channel: String::from("abc"),
+///             number_of_viewers: 10,
+///         }
+///     }
+/// ];
+///
+/// assert_eq!(parsed, expected);
+pub fn parse_messages(messages: Vec<&str>) -> Vec<ParsedTwitchMessage> {
+    let mut parsed_messages = vec![];
+    for message in messages {
+        let parsed = parse_message(message);
+        parsed_messages.push(parsed);
     }
 
+    parsed_messages
 }
