@@ -97,7 +97,7 @@ fn ronni_resubscribe() {
             nick: None,
         }),
         command: Command::USERNOTICE {
-            channel: String::from("forstycup"),
+            channel: String::from("dallas"),
             message: Some(String::from("Great stream -- keep it up!")),
             tags: Some(expected_tags),
         },
