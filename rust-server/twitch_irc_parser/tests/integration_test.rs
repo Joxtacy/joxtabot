@@ -20,7 +20,13 @@ fn create_tags() -> HashMap<String, Tag> {
     tags.insert(String::from("emote-only"), Tag::EmoteOnly(true));
     tags.insert(
         String::from("emotes"),
-        Tag::Emotes(vec![Emote::new(33, vec![TextPosition::new(0, 7)])]),
+        Tag::Emotes(vec![Emote {
+            id: 33,
+            positions: vec![TextPosition {
+                start_index: 0,
+                end_index: 7,
+            }],
+        }]),
     );
     tags.insert(String::from("flags"), Tag::Unknown);
     tags.insert(
@@ -54,10 +60,10 @@ fn message_with_tags() {
     let actual = parse_message(message);
 
     let expected_tags = create_tags();
-    let expected_source = Source::new(
-        String::from("petsgomoo@petsgomoo.tmi.twitch.tv"),
-        Some(String::from("petsgomoo")),
-    );
+    let expected_source = Source {
+        host: String::from("petsgomoo@petsgomoo.tmi.twitch.tv"),
+        nick: Some(String::from("petsgomoo")),
+    };
     let expected_command = Command::PRIVMSG {
         channel: String::from("petsgomoo"),
         message: String::from("DansGame"),
@@ -90,7 +96,10 @@ fn test_parse_message() {
 
     let result = parse_message(message);
 
-    let expected_bot_command = BotCommand::new(String::from("dilly"), vec![String::from("dally")]);
+    let expected_bot_command = BotCommand {
+        command: String::from("dilly"),
+        parameters: vec![String::from("dally")],
+    };
 
     let expected_command = Command::PRIVMSG {
         channel: String::from("lovingt3s"),
@@ -99,10 +108,10 @@ fn test_parse_message() {
         tags: None,
     };
 
-    let expected_source = Source::new(
-        String::from("lovingt3s@lovingt3s.tmi.twitch.tv"),
-        Some(String::from("lovingt3s")),
-    );
+    let expected_source = Source {
+        host: String::from("lovingt3s@lovingt3s.tmi.twitch.tv"),
+        nick: Some(String::from("lovingt3s")),
+    };
 
     let expected = ParsedTwitchMessage {
         source: Some(expected_source),

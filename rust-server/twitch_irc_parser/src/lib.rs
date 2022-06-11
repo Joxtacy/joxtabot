@@ -510,66 +510,27 @@ pub struct Source {
     pub host: String,
 }
 
-impl Source {
-    /// Creates a new instance of the `Source` struct.
-    ///
-    /// # Examples
-    /// ```
-    /// let source = twitch_irc_parser::Source::new(
-    ///     Some(String::from("joxtacy")),
-    ///     String::from("joxtacy@joxtacy.tmi.twitch.tv")
-    /// );
-    /// ```
-    pub fn new(host: String, nick: Option<String>) -> Source {
-        Source { nick, host }
-    }
-}
-
 /// Represents a bot command.
 /// Bot commands are `PRIVMSG`s that begin with an exclamation point (`!`) directly followed by the command.
 /// The parameters to the command will be a vector of the rest of the words in the message delimited by whitespaces.
 #[derive(PartialEq, Debug)]
 pub struct BotCommand {
-    command: String,
-    parameters: Vec<String>,
-}
-
-impl BotCommand {
-    pub fn new(command: String, parameters: Vec<String>) -> BotCommand {
-        BotCommand {
-            command,
-            parameters,
-        }
-    }
+    pub command: String,
+    pub parameters: Vec<String>,
 }
 
 /// Represents the start and end index in a string.
 #[derive(PartialEq, Debug)]
 pub struct TextPosition {
-    start_index: usize,
-    end_index: usize,
-}
-
-impl TextPosition {
-    pub fn new(start_index: usize, end_index: usize) -> TextPosition {
-        TextPosition {
-            start_index,
-            end_index,
-        }
-    }
+    pub start_index: usize,
+    pub end_index: usize,
 }
 
 /// Represents an emotes id and where in the message this emote is.
 #[derive(PartialEq, Debug)]
 pub struct Emote {
-    id: usize,
-    positions: Vec<TextPosition>,
-}
-
-impl Emote {
-    pub fn new(id: usize, positions: Vec<TextPosition>) -> Emote {
-        Emote { id, positions }
-    }
+    pub id: usize,
+    pub positions: Vec<TextPosition>,
 }
 
 /// Represents what type of user sent the message.

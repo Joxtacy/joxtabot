@@ -8,7 +8,10 @@ fn no_tags() {
     let actual = parse_message(message);
 
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
+        source: Some(Source {
+            host: String::from("tmi.twitch.tv"),
+            nick: None,
+        }),
         command: Command::ROOMSTATE {
             channel: String::from("bar"),
             tags: None,
@@ -33,7 +36,10 @@ fn with_tags() {
     expected_tags.insert(String::from("subs-only"), Tag::SubsOnly(false));
 
     let expected = ParsedTwitchMessage {
-        source: Some(Source::new(String::from("tmi.twitch.tv"), None)),
+        source: Some(Source {
+            host: String::from("tmi.twitch.tv"),
+            nick: None,
+        }),
         command: Command::ROOMSTATE {
             channel: String::from("dallas"),
             tags: Some(expected_tags),

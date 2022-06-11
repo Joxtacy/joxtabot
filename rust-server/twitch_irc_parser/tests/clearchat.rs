@@ -30,7 +30,10 @@ fn test_perma_ban_user_message() {
         tags: Some(expected_tags),
     };
 
-    let expected_source = Source::new(String::from("tmi.twitch.tv"), None);
+    let expected_source = Source {
+        host: String::from("tmi.twitch.tv"),
+        nick: None,
+    };
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
@@ -65,7 +68,10 @@ fn test_clear_message_from_chat_room() {
         tags: Some(expected_tags),
     };
 
-    let expected_source = Source::new(String::from("tmi.twitch.tv"), None);
+    let expected_source = Source {
+        host: String::from("tmi.twitch.tv"),
+        nick: None,
+    };
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
@@ -105,7 +111,10 @@ fn test_timeout_user() {
         tags: Some(expected_tags),
     };
 
-    let expected_source = Source::new(String::from("tmi.twitch.tv"), None);
+    let expected_source = Source {
+        host: String::from("tmi.twitch.tv"),
+        nick: None,
+    };
 
     let expected = ParsedTwitchMessage {
         command: expected_command,

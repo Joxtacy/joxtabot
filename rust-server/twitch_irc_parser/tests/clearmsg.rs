@@ -28,7 +28,10 @@ fn test_clear_single_message() {
         tags: Some(expected_tags),
     };
 
-    let expected_source = Source::new(String::from("tmi.twitch.tv"), None);
+    let expected_source = Source {
+        host: String::from("tmi.twitch.tv"),
+        nick: None,
+    };
 
     let expected = ParsedTwitchMessage {
         command: expected_command,
