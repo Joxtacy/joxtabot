@@ -84,11 +84,11 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
     ParsedTwitchMessage { command, source }
 }
 
-/// Parses a vector of message from a Twitch IRC Chat
+/// Parses a string of messages from a Twitch IRC Chat
 ///
 /// # Panics
 ///
-/// When the message starts with a '@' but has nothing after it.
+/// When the string starts with a '@' but has nothing after it.
 ///
 /// # Examples
 ///
@@ -96,10 +96,8 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
 /// use std::collections::HashMap;
 /// use twitch_irc_parser::{parse_messages, Command, ParsedTwitchMessage, Source};
 ///
-/// let messages = vec![
-///     "PING :tmi.twitch.tv",
-///     ":tmi.twitch.tv HOSTTARGET #abc :xyz 10"
-/// ];
+/// let messages = "PING :tmi.twitch.tv\r\n:tmi.twitch.tv HOSTTARGET #abc :xyz 10"
+///
 /// let parsed = parse_messages(messages);
 ///
 /// let expected = vec![
@@ -121,12 +119,10 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
 /// ];
 ///
 /// assert_eq!(parsed, expected);
-pub fn parse_messages(messages: Vec<&str>) -> Vec<ParsedTwitchMessage> {
-    let mut parsed_messages = vec![];
-    for message in messages {
-        let parsed = parse_message(message);
-        parsed_messages.push(parsed);
-    }
+pub fn parse_messages(messages: &str) -> Vec<ParsedTwitchMessage> {
+    let messages = messages.split("\r\n");
 
-    parsed_messages
+    messages.into_iter()
+        .map(parse_message)
+        .collect()
 }
