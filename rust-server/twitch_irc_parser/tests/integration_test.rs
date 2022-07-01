@@ -125,9 +125,12 @@ fn test_parse_message() {
 fn multiple_messages() {
     let message = ":joxtabot!joxtabot@joxtabot.tmi.twitch.tv JOIN #joxtacy\r\n:joxtabot.tmi.twitch.tv 353 joxtabot = #joxtacy :joxtabot\r\n:joxtabot.tmi.twitch.tv 366 joxtabot #joxtacy :End of /NAMES list\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/membership\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/tags twitch.tv/commands";
 
-    let messages: Vec<&str> = message.split("\r\n").collect();
+    let _expected_messages: Vec<ParsedTwitchMessage> = vec![];
 
-    let mut expected_messages: Vec<ParsedTwitchMessage> = vec![];
+    let actual = parse_messages(message);
 
-    panic!("IMPLEMENT ME!!!");
+    for message in actual {
+        println!("{:?}", message);
+    }
+    todo!("IMPLEMENT ME!!!");
 }
