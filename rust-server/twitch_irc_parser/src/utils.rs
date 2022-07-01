@@ -541,6 +541,7 @@ pub fn parse_command(raw_command: &str, raw_tags: &str) -> Command {
                 number_of_viewers,
             }
         }
+        "JOIN" => Command::JOIN(channel.to_string()),
         "NOTICE" => Command::NOTICE {
             channel: channel.to_string(),
             message: parameters.to_string(),
@@ -574,7 +575,20 @@ pub fn parse_command(raw_command: &str, raw_tags: &str) -> Command {
             channel: channel.to_string(),
             tags,
         },
-        _ => Command::UNSUPPORTED,
+        _ => {
+            let mut split = command.split(' ');
+            let number = split.next();
+            match number {
+                Some(number) => {
+                    let number = number.trim().parse::<usize>();
+                    match number {
+                        Ok(number) => Command::NUMBER(number, Some(parameters.to_string())),
+                        Err(_error) => Command::UNSUPPORTED,
+                    }
+                }
+                None => Command::UNSUPPORTED,
+            }
+        }
     }
 }
 

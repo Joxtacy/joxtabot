@@ -7,7 +7,7 @@ pub enum Command {
     ///
     /// #Prototype
     /// `:<user>!<user>@<user>.tmi.twitch.tv JOIN #<channel>`
-    JOIN(String),
+    JOIN(String), // The channel
 
     /// This is the standard `PART` message that you receive when a user leaves a chat room.
     ///
@@ -306,7 +306,7 @@ pub enum Command {
 
     // TODO: what is the `Option<String>`?
     /// A NUMBER type message. The `u32` is the message number.
-    NUMBER(u32, Option<String>),
+    NUMBER(usize, Option<String>),
     /// Unsupported message type.
     UNSUPPORTED,
 }
