@@ -171,10 +171,7 @@ pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "emote-only" => match tag_value {
                 Some(value) => {
-                    let emote_only = match value {
-                        "1" => true,
-                        _ => false,
-                    };
+                    let emote_only = matches!(value, "1");
                     Tag::EmoteOnly(emote_only)
                 }
                 None => Tag::EmoteOnly(false),
@@ -195,11 +192,8 @@ pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "first-msg" => match tag_value {
                 Some(value) => {
-                    let fisrt_msg = match value {
-                        "1" => true,
-                        _ => false,
-                    };
-                    Tag::FirstMsg(fisrt_msg)
+                    let first_msg = matches!(value, "1");
+                    Tag::FirstMsg(first_msg)
                 }
                 None => Tag::FirstMsg(false),
             },
@@ -229,10 +223,7 @@ pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "mod" => match tag_value {
                 Some(value) => {
-                    let r#mod = match value {
-                        "1" => true,
-                        _ => false,
-                    };
+                    let r#mod = matches!(value, "1");
                     Tag::Mod(r#mod)
                 }
                 None => Tag::Mod(false),
@@ -380,10 +371,7 @@ pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "subscriber" => match tag_value {
                 Some(value) => {
-                    let subscriber = match value {
-                        "1" => true,
-                        _ => false,
-                    };
+                    let subscriber = matches!(value, "1");
                     Tag::Subscriber(subscriber)
                 }
                 None => Tag::Subscriber(false),
@@ -411,10 +399,7 @@ pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
             },
             "turbo" => match tag_value {
                 Some(value) => {
-                    let turbo = match value {
-                        "1" => true,
-                        _ => false,
-                    };
+                    let turbo = matches!(value, "1");
                     Tag::Turbo(turbo)
                 }
                 None => Tag::Turbo(false),
@@ -463,10 +448,10 @@ pub fn parse_source(raw_source: &str) -> Source {
     let first = split_source.next().expect("Should have at least one part");
     let second = split_source.next();
 
-    if second.is_some() {
+    if let Some(s) = second {
         Source {
             nick: Some(first.to_string()),
-            host: second.unwrap().to_string(),
+            host: s.to_string(),
         }
     } else {
         Source {
@@ -481,15 +466,13 @@ pub fn parse_command(raw_command: &str, raw_tags: &str) -> Command {
     let channel_index = raw_command.find('#').unwrap_or(parameters_index);
 
     let channel = if channel_index != parameters_index {
-        let channel = raw_command[channel_index + 1..parameters_index].trim();
-        channel
+        raw_command[channel_index + 1..parameters_index].trim()
     } else {
         ""
     };
 
     let parameters = if parameters_index != raw_command.len() {
-        let parameters = raw_command[parameters_index + 1..].trim();
-        parameters
+        raw_command[parameters_index + 1..].trim()
     } else {
         ""
     };
@@ -598,7 +581,7 @@ pub fn parse_bot_command(raw_bot_command: &str) -> Option<BotCommand> {
     // Parameters: ["dally", "wally"]
     let bot_command = raw_bot_command.trim();
 
-    if bot_command.len() == 0 {
+    if bot_command.is_empty() {
         return None;
     }
 
@@ -611,7 +594,7 @@ pub fn parse_bot_command(raw_bot_command: &str) -> Option<BotCommand> {
 
     let bot_command = &bot_command[1..];
 
-    if bot_command.len() == 0 {
+    if bot_command.is_empty() {
         // "!" is not a command
         return None;
     }
@@ -624,9 +607,9 @@ pub fn parse_bot_command(raw_bot_command: &str) -> Option<BotCommand> {
     let have_params = bot_command.find(' ').is_some();
 
     if have_params {
-        let mut derp = bot_command.split(' ');
-        let command = derp.next().expect("There should be a str here").to_string();
-        let parameters: Vec<String> = derp.map(|param| String::from(param)).collect();
+        let mut params = bot_command.split(' ');
+        let command = params.next().expect("There should be a str here").to_string();
+        let parameters: Vec<String> = params.map(String::from).collect();
         Some(BotCommand {
             command,
             parameters,
