@@ -122,7 +122,5 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
 pub fn parse_messages(messages: &str) -> Vec<ParsedTwitchMessage> {
     let messages = messages.split("\r\n");
 
-    messages.into_iter()
-        .map(parse_message)
-        .collect()
+    messages.into_iter().map(parse_message).collect()
 }

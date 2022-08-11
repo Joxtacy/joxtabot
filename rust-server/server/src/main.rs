@@ -19,9 +19,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         let logger = Logger::default();
-        App::new()
-            .wrap(logger)
-            .service(twitch_webhook)
+        App::new().wrap(logger).service(twitch_webhook)
     })
     .bind(("127.0.0.1", port))?
     .run()

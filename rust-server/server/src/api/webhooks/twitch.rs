@@ -1,13 +1,13 @@
 use actix_web::{
-    http::{StatusCode, header::HeaderValue},
+    http::{header::HeaderValue, StatusCode},
     post,
     web::Bytes,
-    HttpRequest, HttpResponseBuilder, HttpResponse,
+    HttpRequest, HttpResponse, HttpResponseBuilder,
 };
-use hmac::{Mac, Hmac};
+use hex;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use hex;
 
 // Webhook subscription verification challenge example
 // {
@@ -210,25 +210,27 @@ pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
     let twitch_message_type = parse_header(twitch_message_type);
 
-    if twitch_message_type == NOTIFICATION_TYPE { // This is where we got a notification
+    if twitch_message_type == NOTIFICATION_TYPE {
+        // This is where we got a notification
         // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
         let _message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
 
         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
-    } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE { // This is when
-                                                                          // subscribing to a
-                                                                          // webhook
+    } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
+        // This is when subscribing to a webhook
         let message = serde_json::from_str::<VerificationChallenge>(&body).unwrap();
 
         return HttpResponseBuilder::new(StatusCode::OK).body(message.challenge);
-    } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE { // This is when webhook
-                                                                 // subscription was revoked
+    } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
+        // This is when webhook subscription was revoked
         let message = serde_json::from_str::<RevokedSubscription>(&body).unwrap();
 
-        println!("ERROR: Webhook subscription revoked. Reason: {}", message.subscription.status);
+        println!(
+            "ERROR: Webhook subscription revoked. Reason: {}",
+            message.subscription.status
+        );
         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
     }
-
 
     // let message = item.into_inner();
     // println!("REQUEST! {:?}", req);
@@ -273,7 +275,10 @@ fn verify_twitch_message(req: &HttpRequest, body: &str) -> bool {
     type HmacSha256 = Hmac<Sha256>;
 
     let hmac_prefix = "sha256="; // Twitch signature starts with `sha256=`
-    let split_strings = twitch_message_signature.split(hmac_prefix).into_iter().collect::<Vec<&str>>();
+    let split_strings = twitch_message_signature
+        .split(hmac_prefix)
+        .into_iter()
+        .collect::<Vec<&str>>();
 
     // If split fails, that means it is not a valid signature
     if split_strings.len() < 2 {
@@ -282,8 +287,8 @@ fn verify_twitch_message(req: &HttpRequest, body: &str) -> bool {
 
     let decoded = hex::decode(split_strings[1]).unwrap_or_default();
 
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC can take key of any size");
     mac.update(hmac_message.as_bytes());
 
     mac.verify_slice(&decoded).is_ok()

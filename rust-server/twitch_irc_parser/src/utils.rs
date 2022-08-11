@@ -608,7 +608,10 @@ pub fn parse_bot_command(raw_bot_command: &str) -> Option<BotCommand> {
 
     if have_params {
         let mut params = bot_command.split(' ');
-        let command = params.next().expect("There should be a str here").to_string();
+        let command = params
+            .next()
+            .expect("There should be a str here")
+            .to_string();
         let parameters: Vec<String> = params.map(String::from).collect();
         Some(BotCommand {
             command,
