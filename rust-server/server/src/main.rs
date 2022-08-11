@@ -1,5 +1,4 @@
 mod api;
-use api::task::get_task;
 use api::webhooks::twitch::twitch_webhook;
 
 use actix_web::{middleware::Logger, App, HttpServer};
@@ -22,7 +21,6 @@ async fn main() -> std::io::Result<()> {
         let logger = Logger::default();
         App::new()
             .wrap(logger)
-            .service(get_task)
             .service(twitch_webhook)
     })
     .bind(("127.0.0.1", port))?
