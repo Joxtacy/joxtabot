@@ -9,6 +9,55 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use hex;
 
+// Webhook subscription verification challenge example
+// {
+//   "challenge": "pogchamp-kappa-360noscope-vohiyo",
+//   "subscription": {
+//     "id": "f1c2a387-161a-49f9-a165-0f21d7a4e1c4",
+//     "status": "webhook_callback_verification_pending",
+//     "type": "channel.follow",
+//     "version": "1",
+//     "cost": 1,
+//     "condition": {
+//       "broadcaster_user_id": "12826"
+//     },
+//     "transport": {
+//       "method": "webhook",
+//       "callback": "https://example.com/webhooks/callback"
+//     },
+//     "created_at": "2019-11-16T10:11:12.123Z"
+//   }
+// }
+
+#[derive(Serialize, Deserialize, Debug)]
+struct VerificationChallenge {
+    challenge: String,
+    subscription: Subscription,
+}
+
+// Webhook subscription revoked example
+// {
+//   "subscription": {
+//     "id": "f1c2a387-161a-49f9-a165-0f21d7a4e1c4",
+//     "status": "authorization_revoked",
+//     "type": "channel.follow",
+//     "cost": 1,
+//     "version": "1",
+//     "condition": {
+//       "broadcaster_user_id": "12826"
+//     },
+//     "transport": {
+//       "method": "webhook",
+//       "callback": "https://example.com/webhooks/callback"
+//     },
+//     "created_at": "2019-11-16T10:11:12.123Z"
+//   }
+// }
+#[derive(Serialize, Deserialize, Debug)]
+struct RevokedSubscription {
+    subscription: Subscription,
+}
+
 // Redeem reward example.
 // {
 //     "subscription": {
@@ -137,6 +186,16 @@ pub struct Reward {
     prompt: String,
 }
 
+/// The value of the `Twitch-Eventsub-Message-Type` header
+/// when receiving a notification
+const NOTIFICATION_TYPE: &str = "notification";
+/// The value of the `Twitch-Eventsub-Message-Type` header
+/// when new webhook subscription is created
+const WEBHOOK_CALLBACK_VERIFICATION_TYPE: &str = "webhook_callback_verification";
+/// The value of the `Twitch-Eventsub-Message-Type` header
+/// when the webhook has been revoked
+const SUBSCRIPTION_REVOKED_TYPE: &str = "revocation";
+
 #[post("/twitch/webhooks/callback")]
 pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
 // pub async fn twitch_webhook(req: HttpRequest, item: Json<TwitchMessage>) -> HttpResponse {
@@ -147,7 +206,29 @@ pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
         return HttpResponseBuilder::new(StatusCode::NOT_ACCEPTABLE).finish();
     }
 
-    let message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
+    let headers = req.headers();
+    let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
+    let twitch_message_type = parse_header(twitch_message_type);
+
+    if twitch_message_type == NOTIFICATION_TYPE { // This is where we got a notification
+        // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
+        let _message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
+
+        return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
+    } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE { // This is when
+                                                                          // subscribing to a
+                                                                          // webhook
+        let message = serde_json::from_str::<VerificationChallenge>(&body).unwrap();
+
+        return HttpResponseBuilder::new(StatusCode::OK).body(message.challenge);
+    } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE { // This is when webhook
+                                                                 // subscription was revoked
+        let message = serde_json::from_str::<RevokedSubscription>(&body).unwrap();
+
+        println!("ERROR: Webhook subscription revoked. Reason: {}", message.subscription.status);
+        return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
+    }
+
 
     // let message = item.into_inner();
     // println!("REQUEST! {:?}", req);
