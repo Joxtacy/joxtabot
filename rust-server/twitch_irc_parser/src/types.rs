@@ -421,7 +421,7 @@ pub enum Tag {
     /// An integer value that determines whether only followers can post messages in the chat room. The value indicates how long, in minutes, the user must have followed the broadcaster before posting chat messages. If the value is -1, the chat room is not restricted to followers only.
     FollowersOnly(i32),
     Emotes(Vec<Emote>),
-    EmoteSets(Vec<usize>), // List of emote sets
+    EmoteSets(Vec<String>), // List of emote sets
 
     /// An ID that uniquely identifies this message.
     Id(String),

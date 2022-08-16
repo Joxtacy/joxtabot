@@ -37,7 +37,18 @@ fn message_with_tags() {
     expected_tags.insert(
         String::from("emote-sets"),
         Tag::EmoteSets(vec![
-            0, 33, 50, 237, 793, 2126, 3517, 4578, 5569, 9400, 10337, 12239,
+            String::from("0"),
+            String::from("33"),
+            String::from("50"),
+            String::from("237"),
+            String::from("793"),
+            String::from("2126"),
+            String::from("3517"),
+            String::from("4578"),
+            String::from("5569"),
+            String::from("9400"),
+            String::from("10337"),
+            String::from("12239"),
         ]),
     );
     expected_tags.insert(String::from("turbo"), Tag::Turbo(false));

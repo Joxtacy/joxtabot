@@ -83,18 +83,11 @@ pub fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
     emotes
 }
 
-pub fn parse_emote_sets(raw_emote_sets: &str) -> Vec<usize> {
-    let mut emote_sets: Vec<usize> = vec![];
-
-    let split_emote_sets = raw_emote_sets.split(',');
-    for raw_emote_set in split_emote_sets {
-        let emote_set = raw_emote_set
-            .parse::<usize>()
-            .expect("Should be an integer");
-        emote_sets.push(emote_set);
-    }
-
-    emote_sets
+pub fn parse_emote_sets(raw_emote_sets: &str) -> Vec<String> {
+    raw_emote_sets
+        .split(',')
+        .map(str::to_string)
+        .collect::<Vec<String>>()
 }
 
 pub fn parse_tags(raw_tags: &str) -> HashMap<String, Tag> {
