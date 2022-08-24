@@ -1,7 +1,7 @@
 /// Representation of the message command.
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Command {
     /// This is the standard `JOIN` message that you receive when a user joins the chat room.
     ///
@@ -314,7 +314,7 @@ pub enum Command {
 /// Representation of the different badges a user can have.
 ///
 /// The `usize` represents the version of the badge. Most often `1`, but for the `Subscriber` badge it represents how long the user has been subscribed in months.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Badge {
     /// An admin badge. The `usize` represents the version of the badge.
     Admin(usize),
@@ -350,7 +350,7 @@ pub enum Badge {
 
 /// Representation of the source of the message.
 // TODO: Rewrite with focus on host. Nick is often not available.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Source {
     pub nick: Option<String>,
     pub host: String,
@@ -359,28 +359,28 @@ pub struct Source {
 /// Represents a bot command.
 /// Bot commands are `PRIVMSG`s that begin with an exclamation point (`!`) directly followed by the command.
 /// The parameters to the command will be a vector of the rest of the words in the message delimited by whitespaces.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct BotCommand {
     pub command: String,
     pub parameters: Vec<String>,
 }
 
 /// Represents the start and end index in a string.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct TextPosition {
     pub start_index: usize,
     pub end_index: usize,
 }
 
 /// Represents an emotes id and where in the message this emote is.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct Emote {
     pub id: usize,
     pub positions: Vec<TextPosition>,
 }
 
 /// Represents what type of user sent the message.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum UserType {
     /// A normal user.
     Normal, // ""
@@ -398,7 +398,7 @@ pub enum UserType {
 /// Represents a tag in a message.
 /// Tags are found directly after an at (`@`) symbol.
 // TODO: What are the values in the enums?
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum Tag {
     /// Currently only holds how long a user has been subscribed in months.
     /// `@badge-info=subscriber/8`
@@ -506,7 +506,7 @@ pub enum Tag {
 pub type Parameters = Vec<String>;
 
 /// Represents a message parsed into an easy to work with struct.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub struct ParsedTwitchMessage {
     pub source: Option<Source>,
     pub command: Command,
