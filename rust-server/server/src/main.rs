@@ -13,24 +13,26 @@ fn create_privmsg(channel: &str, message: &str) -> String {
     format!("PRIVMSG #{} :{}", channel, message)
 }
 
+fn init_env() -> (String, u16) {
+    std::env::set_var("RUST_LOG", "debug");
+    std::env::set_var("RUST_BACKTRACE", "1");
+
+    dotenv::dotenv().ok();
+    env_logger::init();
+
+    let token = match std::env::var("TWITCH_IRC_BOT_OAUTH") {
+        Ok(token) => token,
+        Err(e) => panic!("Can't proceed without bot token: {}", e),
+    };
+    let port = get_env_port();
+
+    (token, port)
+}
+
 #[tokio::main]
 async fn main() {
     // Init env variables
-    let (token, port) = {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-
-        dotenv::dotenv().ok();
-        env_logger::init();
-
-        let token = match std::env::var("TWITCH_IRC_BOT_OAUTH") {
-            Ok(token) => token,
-            Err(e) => panic!("Can't proceed without bot token: {}", e),
-        };
-        let port = get_env_port();
-
-        (token, port)
-    };
+    let (token, port) = init_env();
 
     println!("Running on port {}", port);
 
