@@ -3,7 +3,7 @@ use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use warp::Filter;
 
-use twitch_irc_parser::{parse_message, Command, Tag};
+use twitch_irc_parser::{parse_message, Command, ParsedTwitchMessage, Tag};
 
 const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
@@ -59,6 +59,81 @@ async fn init_ws(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>, tok
         .unwrap();
 }
 
+/// Handle the parsed Twitch IRC message
+async fn handle_message(
+    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    message: ParsedTwitchMessage,
+) {
+    match message.command {
+        // Respond with a PONG to keep message alive
+        Command::PING => {
+            println!("Sending PONG...");
+            let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
+
+            if let Err(e) = res {
+                eprintln!("COULD NOT SEND PONG: {e:?}");
+            } else {
+                println!("PONG sent");
+            }
+        }
+        Command::JOIN(channel) => {
+            let nick = match message.source {
+                Some(source) => source.nick,
+                None => None,
+            };
+
+            match nick {
+                Some(nick) => {
+                    println!("{} joined #{}", nick, channel);
+                }
+                None => {}
+            }
+        }
+        Command::PART(channel) => {
+            let nick = match message.source {
+                Some(source) => source.nick,
+                None => None,
+            };
+
+            match nick {
+                Some(nick) => {
+                    println!("{} left #{}", nick, channel);
+                }
+                None => {}
+            }
+        }
+        Command::PRIVMSG {
+            channel,
+            message,
+            tags,
+            ..
+        } => {
+            let display_name = if let Some(tags) = tags {
+                let dis = tags.get("display-name");
+                if let Some(Tag::DisplayName(display_name)) = dis {
+                    display_name.clone()
+                } else {
+                    "".to_string()
+                }
+            } else {
+                "".to_string()
+            };
+            println!("@{} #{}: {}", display_name, channel, message);
+
+            if message.contains("catJAM") {
+                let response = create_privmsg(&channel, "catJAM");
+                ws_stream.send(response.into()).await.unwrap();
+            } else if message.contains("widepeepoHappy") {
+                let response = create_privmsg(&channel, "widepeepoHappy");
+                ws_stream.send(response.into()).await.unwrap();
+            }
+        }
+        _ => {
+            println!("UNSUPPORTED MESSAGE");
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Init env variables
@@ -82,101 +157,35 @@ async fn main() {
         loop {
             tokio::select! {
                 Some(msg) = ws_stream.next() => {
-                    match msg {
-                        Ok(msg) => {
-                            match msg {
-                                Message::Text(text) => {
-                                    println!("ws TEXT:");
-                                    let split = text.split("\r\n");
-                                    let filtered = split
-                                        .filter(|s| !s.is_empty());
+                    if let Ok(msg) = msg {
+                        match msg {
+                            Message::Text(text) => {
+                                println!("ws TEXT:");
+                                let split = text.split("\r\n");
+                                let filtered = split
+                                    .filter(|s| !s.is_empty());
 
-                                    for msg in filtered {
-                                        println!("msg: {}", msg);
+                                for msg in filtered {
+                                    println!("msg: {}", msg);
 
-                                        // Parse the Twitch Message
-                                        let parsed_message = parse_message(msg);
+                                    // Parse the Twitch Message
+                                    let parsed_message = parse_message(msg);
 
-                                        // Match on the different Twitch Commands
-                                        match parsed_message.command {
-                                            // Respond with a PONG to keep message alive
-                                            Command::PING => {
-                                                println!("Sending PONG...");
-                                                let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
-
-                                                if let Err(e) = res {
-                                                    eprintln!("COULD NOT SEND PONG: {e:?}");
-                                                } else {
-                                                    println!("PONG sent");
-                                                }
-                                            },
-                                            Command::JOIN(channel) => {
-                                                let nick = match parsed_message.source {
-                                                    Some(source) => source.nick,
-                                                    None => None,
-                                                };
-
-                                                match nick {
-                                                    Some(nick) => {
-                                                        println!("{} joined #{}", nick, channel);
-                                                    }
-                                                    None => {}
-                                                }
-                                            },
-                                            Command::PART(channel) => {
-                                                let nick = match parsed_message.source {
-                                                    Some(source) => source.nick,
-                                                    None => None,
-                                                };
-
-                                                match nick {
-                                                    Some(nick) => {
-                                                        println!("{} left #{}", nick, channel);
-                                                    }
-                                                    None => {}
-                                                }
-                                            },
-                                            Command::PRIVMSG { channel, message, tags, .. } => {
-
-                                                let display_name = if let Some(tags) = tags {
-                                                    let dis = tags.get("display-name");
-                                                    if let Some(Tag::DisplayName(display_name)) = dis {
-                                                        display_name.clone()
-                                                    } else {
-                                                        "".to_string()
-                                                    }
-                                                } else {
-                                                    "".to_string()
-                                                };
-                                                println!("@{} #{}: {}", display_name, channel, message);
-
-                                                if message.contains("catJAM") {
-                                                    let response = create_privmsg(&channel, "catJAM");
-                                                    ws_stream.send(response.into()).await.unwrap();
-                                                } else if message.contains("widepeepoHappy") {
-                                                    let response = create_privmsg(&channel, "widepeepoHappy");
-                                                    ws_stream.send(response.into()).await.unwrap();
-                                                }
-                                            },
-                                            _ => {
-                                                println!("UNSUPPORTED MESSAGE");
-                                            }
-                                        }
-                                    }
-                                },
-                                Message::Binary(bin) => {
-                                    println!("ws BINARY:");
-                                    println!("{bin:?}");
-                                },
-                                _ => {
-                                    println!("ws client: We got something else");
+                                    // Match on the different Twitch Commands
+                                    handle_message(&mut ws_stream, parsed_message).await;
                                 }
+                            },
+                            Message::Binary(bin) => {
+                                println!("ws BINARY:");
+                                println!("{bin:?}");
+                            },
+                            _ => {
+                                println!("ws client: We got something else");
                             }
-                        },
-                        Err(e) => {
-                            // We should try to reconnect here
-                            println!("ws client err: {:?}", e);
                         }
+                    } else if let Err(e) = msg {
+                        // We should try to reconnect here
+                        println!("ws client err: {:?}", e);
                     }
                 },
                 Some(msg) = rx.recv() => {
