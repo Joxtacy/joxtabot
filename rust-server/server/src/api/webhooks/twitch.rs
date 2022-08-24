@@ -213,7 +213,9 @@ pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
     if twitch_message_type == NOTIFICATION_TYPE {
         // This is where we got a notification
         // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
-        let _message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
+        let message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
+
+        handle_message(message);
 
         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
     } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
@@ -232,24 +234,38 @@ pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
     }
 
-    // let message = item.into_inner();
-    // println!("REQUEST! {:?}", req);
-
-    // let headers = req.headers();
-    // let twitch_message_type_header = headers.get("Twitch-Eventsub-Message-Type");
-    // let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
-    // let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
-    // let twitch_message_signature = headers.get("Twitch-Eventsub-Message-Signature");
-    // let twitch_subscription_type = headers.get("Twitch-Eventsub-Subscription-Type");
-    // let twitch_subscription_version = headers.get("Twitch-Eventsub-Subscription-Version");
-    // let twitch_message_retry = headers.get("Twitch-Eventsub-Message-Retry");
-
-    // println!("subscription: {:?}", message.subscription);
-    // println!("event: {:?}", message.event);
-
     HttpResponseBuilder::new(StatusCode::OK).json("I got you, fam".to_owned())
 }
 
+/// Handles the webhook message
+fn handle_message(message: TwitchMessage) {
+    let message_type = message.subscription.message_type;
+
+    match &message_type[..] {
+        "stream.online" => {
+            // TODO: Reset `first` overlay message
+            // TODO: Send online notification to Discord
+            println!("STREAM ONLINE! SEND MESSAGE TO DISCORD");
+        },
+        "channel.channel_points_custom_reward_redemption.add" => {
+            // TODO: Handle rewards
+            let reward_title = message.event.reward.title;
+
+            match &reward_title[..] {
+                "First" => {},
+                "Timeout" => {},
+                "-420" => {},
+                "ded" => {},
+                "Nice" => {},
+                "+1 Pushup" => {},
+                "+1 Situp" => {},
+                "Emote-only Chat" => {},
+                _ => println!("[TWITCH] Reward not supported: {}", reward_title),
+            }
+        },
+        _ => println!("Unknown message type: {}", message_type),
+    }
+}
 
 fn parse_header(header: Option<&HeaderValue>) -> String {
     if let Some(header) = header {

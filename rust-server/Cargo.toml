@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "server",
+    "websocket-client",
     "twitch_irc_parser",
 ]

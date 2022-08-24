@@ -15,5 +15,15 @@ hmac = "0.12.1"
 sha2 = "0.10.2"
 twitch_irc_parser = { path = "../twitch_irc_parser" }
 hex = "0.4.3"
+actix = "0.13.0"
+actix-web-actors = "4.1.0"
+tokio-tungstenite = "0.17.2"
+futures-util = { version = "0.3.21", features = ["sink"] }
+awc = "3.0.0"
+tokio = { version = "1.20.1", features = ["macros", "full"] }
+warp = "0.3.2"
+dotenv = "0.15.0"
+serde_derive = "1.0.143"
+bytes = "1.2.1"
 
 [features]
