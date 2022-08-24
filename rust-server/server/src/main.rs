@@ -1,7 +1,7 @@
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use futures_util::{FutureExt, SinkExt, StreamExt};
 use tokio::sync::mpsc;
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use warp::Filter;
-use futures_util::{SinkExt, FutureExt, StreamExt};
 
 use twitch_irc_parser::{parse_message, Command, Tag};
 
@@ -32,9 +32,7 @@ fn init_env() -> (String, u16) {
 
 #[derive(Debug)]
 enum TwitchCommand {
-    Privmsg {
-        message: String,
-    },
+    Privmsg { message: String },
 }
 
 #[tokio::main]
@@ -49,24 +47,25 @@ async fn main() {
     // Run our WebSocket client in its own task.
     tokio::task::spawn(async move {
         // Connect our WebSocket client to Twitch.
-        let (mut ws_stream, _) = connect_async(TWITCH_WS_URL).await.expect("Could not connect to Twitch IRC server");
+        let (mut ws_stream, _) = connect_async(TWITCH_WS_URL)
+            .await
+            .expect("Could not connect to Twitch IRC server");
         println!("Websocket client connected to Twitch");
 
         // Init the WebSocket connection to our Twitch channel.
         {
-            ws_stream.send(format!("PASS {}", token).into())
+            ws_stream
+                .send(format!("PASS {}", token).into())
                 .await
                 .unwrap();
-            ws_stream.send("NICK joxtabot".into())
+            ws_stream.send("NICK joxtabot".into()).await.unwrap();
+            ws_stream.send("JOIN #joxtacy".into()).await.unwrap();
+            ws_stream
+                .send("CAP REQ :twitch.tv/membership".into())
                 .await
                 .unwrap();
-            ws_stream.send("JOIN #joxtacy".into())
-                .await
-                .unwrap();
-            ws_stream.send("CAP REQ :twitch.tv/membership".into())
-                .await
-                .unwrap();
-            ws_stream.send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
+            ws_stream
+                .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
                 .await
                 .unwrap();
         }
@@ -215,21 +214,26 @@ async fn main() {
         .and(warp::path("callback"))
         .and(warp::body::bytes())
         .and(with_sender)
-        .then(|bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
-            let res = tx.send(TwitchCommand::Privmsg { message: "henlo".to_string() }).await;
-            if let Err(e) = res {
-                eprintln!("Could not send message: {:?}", e);
-            }
-            let body = String::from_utf8(bytes.to_vec()).unwrap();
-            println!("received POST request webhook: {:?}", body);
-            let data = serde_json::from_str::<Data>(&body).unwrap();
-            // data.name = "Jox".into();
-            // warp::reply::json(&data)
-            warp::reply::json(&data)
-        });
+        .then(
+            |bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
+                let res = tx
+                    .send(TwitchCommand::Privmsg {
+                        message: "henlo".to_string(),
+                    })
+                    .await;
+                if let Err(e) = res {
+                    eprintln!("Could not send message: {:?}", e);
+                }
+                let body = String::from_utf8(bytes.to_vec()).unwrap();
+                println!("received POST request webhook: {:?}", body);
+                let data = serde_json::from_str::<Data>(&body).unwrap();
+                // data.name = "Jox".into();
+                // warp::reply::json(&data)
+                warp::reply::json(&data)
+            },
+        );
 
-    let get_routes = warp::get()
-        .and(root.or(websocket));
+    let get_routes = warp::get().and(root.or(websocket));
     let routes = get_routes.or(post_routes);
     warp::serve(routes).run(([127, 0, 0, 1], port)).await;
 }
