@@ -1,6 +1,6 @@
 use futures_util::{FutureExt, SinkExt, StreamExt};
-use tokio::sync::mpsc;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio::{net::TcpStream, sync::mpsc};
+use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use warp::Filter;
 
 use twitch_irc_parser::{parse_message, Command, Tag};
@@ -35,6 +35,30 @@ enum TwitchCommand {
     Privmsg { message: String },
 }
 
+/// Initialize the Twitch WebSocket Connection
+///
+/// Send a `PASS` message to authorize
+/// Send a `NICK` message to establish username
+/// Send a `JOIN` message to join the IRC channel
+/// Send a `CAP REQ /membership` message
+/// Send a `CAP REQ /tags` message to get tags with messages
+async fn init_ws(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>, token: &str) {
+    ws_stream
+        .send(format!("PASS {}", token).into())
+        .await
+        .unwrap();
+    ws_stream.send("NICK joxtabot".into()).await.unwrap();
+    ws_stream.send("JOIN #joxtacy".into()).await.unwrap();
+    ws_stream
+        .send("CAP REQ :twitch.tv/membership".into())
+        .await
+        .unwrap();
+    ws_stream
+        .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
+        .await
+        .unwrap();
+}
+
 #[tokio::main]
 async fn main() {
     // Init env variables
@@ -53,22 +77,7 @@ async fn main() {
         println!("Websocket client connected to Twitch");
 
         // Init the WebSocket connection to our Twitch channel.
-        {
-            ws_stream
-                .send(format!("PASS {}", token).into())
-                .await
-                .unwrap();
-            ws_stream.send("NICK joxtabot".into()).await.unwrap();
-            ws_stream.send("JOIN #joxtacy".into()).await.unwrap();
-            ws_stream
-                .send("CAP REQ :twitch.tv/membership".into())
-                .await
-                .unwrap();
-            ws_stream
-                .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
-                .await
-                .unwrap();
-        }
+        init_ws(&mut ws_stream, &token).await;
 
         loop {
             tokio::select! {
