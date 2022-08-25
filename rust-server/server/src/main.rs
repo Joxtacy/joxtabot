@@ -198,6 +198,9 @@ async fn main() {
                             }
                         }
                     }
+                },
+                else => {
+                    break;
                 }
             }
         }
