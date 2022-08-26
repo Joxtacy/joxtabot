@@ -230,9 +230,7 @@ async fn main() {
     let with_sender = warp::any().map(move || tx.clone());
     // This is where Twitch will send their callbacks
     let post_routes = warp::post()
-        .and(warp::path("twitch"))
-        .and(warp::path("webhooks"))
-        .and(warp::path("callback"))
+        .and(warp::path!("twitch" / "webhooks" / "callback"))
         .and(warp::body::bytes())
         .and(with_sender)
         .then(
