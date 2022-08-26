@@ -1,7 +1,7 @@
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
-use warp::Filter;
+use warp::{http::HeaderMap, Filter};
 
 use twitch_irc_parser::{parse_message, Command, ParsedTwitchMessage, Tag};
 
@@ -231,10 +231,11 @@ async fn main() {
     // This is where Twitch will send their callbacks
     let post_routes = warp::post()
         .and(warp::path!("twitch" / "webhooks" / "callback"))
+        .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
         .and(with_sender)
         .then(
-            |bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
+            |headers: HeaderMap, bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
                 let res = tx
                     .send(TwitchCommand::Privmsg {
                         message: "henlo".to_string(),
