@@ -1,13 +1,10 @@
-use actix_web::{
-    http::{header::HeaderValue, StatusCode},
-    post,
-    web::Bytes,
-    HttpRequest, HttpResponse, HttpResponseBuilder,
-};
 use hex;
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use warp::http::{HeaderMap, HeaderValue};
+
+use crate::TwitchCommand;
 
 // Webhook subscription verification challenge example
 // {
@@ -30,8 +27,8 @@ use sha2::Sha256;
 // }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct VerificationChallenge {
-    challenge: String,
+pub struct VerificationChallenge {
+    pub challenge: String,
     subscription: Subscription,
 }
 
@@ -54,8 +51,8 @@ struct VerificationChallenge {
 //   }
 // }
 #[derive(Serialize, Deserialize, Debug)]
-struct RevokedSubscription {
-    subscription: Subscription,
+pub struct RevokedSubscription {
+    pub subscription: Subscription,
 }
 
 // Redeem reward example.
@@ -123,31 +120,31 @@ struct RevokedSubscription {
 // }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Condition {
+pub struct Condition {
     broadcaster_user_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Transport {
+pub struct Transport {
     method: String,
     callback: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Subscription {
+pub struct Subscription {
     condition: Condition,
     cost: usize,
     created_at: String,
     id: String,
     #[serde(rename(deserialize = "type", serialize = "type"))]
     message_type: String, // discriminator
-    status: String,
+    pub status: String,
     transport: Transport,
     version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Event {
+pub struct Event {
     broadcaster_user_id: String,
     broadcaster_user_login: String,
     broadcaster_user_name: String,
@@ -188,57 +185,57 @@ pub struct Reward {
 
 /// The value of the `Twitch-Eventsub-Message-Type` header
 /// when receiving a notification
-const NOTIFICATION_TYPE: &str = "notification";
+pub const NOTIFICATION_TYPE: &str = "notification";
 /// The value of the `Twitch-Eventsub-Message-Type` header
 /// when new webhook subscription is created
-const WEBHOOK_CALLBACK_VERIFICATION_TYPE: &str = "webhook_callback_verification";
+pub const WEBHOOK_CALLBACK_VERIFICATION_TYPE: &str = "webhook_callback_verification";
 /// The value of the `Twitch-Eventsub-Message-Type` header
 /// when the webhook has been revoked
-const SUBSCRIPTION_REVOKED_TYPE: &str = "revocation";
+pub const SUBSCRIPTION_REVOKED_TYPE: &str = "revocation";
 
-#[post("/twitch/webhooks/callback")]
-pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
-// pub async fn twitch_webhook(req: HttpRequest, item: Json<TwitchMessage>) -> HttpResponse {
-    let body = String::from_utf8(bytes.to_vec()).unwrap();
-
-    let verified = verify_twitch_message(&req, &body);
-    if !verified {
-        return HttpResponseBuilder::new(StatusCode::NOT_ACCEPTABLE).finish();
-    }
-
-    let headers = req.headers();
-    let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
-    let twitch_message_type = parse_header(twitch_message_type);
-
-    if twitch_message_type == NOTIFICATION_TYPE {
-        // This is where we got a notification
-        // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
-        let message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
-
-        handle_message(message);
-
-        return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
-    } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
-        // This is when subscribing to a webhook
-        let message = serde_json::from_str::<VerificationChallenge>(&body).unwrap();
-
-        return HttpResponseBuilder::new(StatusCode::OK).body(message.challenge);
-    } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
-        // This is when webhook subscription was revoked
-        let message = serde_json::from_str::<RevokedSubscription>(&body).unwrap();
-
-        println!(
-            "ERROR: Webhook subscription revoked. Reason: {}",
-            message.subscription.status
-        );
-        return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
-    }
-
-    HttpResponseBuilder::new(StatusCode::OK).json("I got you, fam".to_owned())
-}
+// #[post("/twitch/webhooks/callback")]
+// pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
+//     // pub async fn twitch_webhook(req: HttpRequest, item: Json<TwitchMessage>) -> HttpResponse {
+//     let body = String::from_utf8(bytes.to_vec()).unwrap();
+//
+//     let verified = verify_twitch_message(req.headers(), &body);
+//     if !verified {
+//         return HttpResponseBuilder::new(StatusCode::NOT_ACCEPTABLE).finish();
+//     }
+//
+//     let headers = req.headers();
+//     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
+//     let twitch_message_type = parse_header(twitch_message_type);
+//
+//     if twitch_message_type == NOTIFICATION_TYPE {
+//         // This is where we got a notification
+//         // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
+//         let message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
+//
+//         handle_message(message);
+//
+//         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
+//     } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
+//         // This is when subscribing to a webhook
+//         let message = serde_json::from_str::<VerificationChallenge>(&body).unwrap();
+//
+//         return HttpResponseBuilder::new(StatusCode::OK).body(message.challenge);
+//     } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
+//         // This is when webhook subscription was revoked
+//         let message = serde_json::from_str::<RevokedSubscription>(&body).unwrap();
+//
+//         println!(
+//             "ERROR: Webhook subscription revoked. Reason: {}",
+//             message.subscription.status
+//         );
+//         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
+//     }
+//
+//     HttpResponseBuilder::new(StatusCode::OK).json("I got you, fam".to_owned())
+// }
 
 /// Handles the webhook message
-fn handle_message(message: TwitchMessage) {
+pub fn handle_webhook_message(message: TwitchMessage) -> TwitchCommand {
     let message_type = message.subscription.message_type;
 
     match &message_type[..] {
@@ -246,28 +243,41 @@ fn handle_message(message: TwitchMessage) {
             // TODO: Reset `first` overlay message
             // TODO: Send online notification to Discord
             println!("STREAM ONLINE! SEND MESSAGE TO DISCORD");
-        },
+            TwitchCommand::StreamOnline
+        }
         "channel.channel_points_custom_reward_redemption.add" => {
             // TODO: Handle rewards
             let reward_title = message.event.reward.title;
 
             match &reward_title[..] {
-                "First" => {},
-                "Timeout" => {},
-                "-420" => {},
-                "ded" => {},
-                "Nice" => {},
-                "+1 Pushup" => {},
-                "+1 Situp" => {},
-                "Emote-only Chat" => {},
-                _ => println!("[TWITCH] Reward not supported: {}", reward_title),
+                "First" => TwitchCommand::First(message.event.user_name),
+                "Timeout" => {
+                    let user_name = message.event.user_name;
+                    TwitchCommand::Timeout {
+                        timeout: 120,
+                        user: user_name,
+                    }
+                }
+                "-420" => TwitchCommand::FourTwenty,
+                "ded" => TwitchCommand::Ded,
+                "Nice" => TwitchCommand::Nice,
+                "+1 Pushup" => TwitchCommand::Pushup,
+                "+1 Situp" => TwitchCommand::Situp,
+                "Emote-only Chat" => TwitchCommand::EmoteOnly,
+                _ => {
+                    println!("[TWITCH] Reward not supported: {}", reward_title);
+                    TwitchCommand::UnsupportedMessage
+                }
             }
-        },
-        _ => println!("Unknown message type: {}", message_type),
+        }
+        _ => {
+            println!("Unknown message type: {}", message_type);
+            TwitchCommand::UnsupportedMessage
+        }
     }
 }
 
-fn parse_header(header: Option<&HeaderValue>) -> String {
+pub fn parse_header(header: Option<&HeaderValue>) -> String {
     if let Some(header) = header {
         header.to_str().unwrap_or("").to_owned()
     } else {
@@ -275,8 +285,7 @@ fn parse_header(header: Option<&HeaderValue>) -> String {
     }
 }
 
-fn verify_twitch_message(req: &HttpRequest, body: &str) -> bool {
-    let headers = req.headers();
+pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
     let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
     let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
     let twitch_message_signature = headers.get("Twitch-Eventsub-Message-Signature");

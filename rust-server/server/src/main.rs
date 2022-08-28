@@ -1,9 +1,19 @@
 use futures_util::{FutureExt, SinkExt, StreamExt};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
-use warp::{http::HeaderMap, Filter};
+use warp::{
+    http::{HeaderMap, StatusCode},
+    Filter,
+};
 
 use twitch_irc_parser::{parse_message, Command, ParsedTwitchMessage, Tag};
+
+mod api;
+use api::webhooks::twitch::{
+    handle_webhook_message, parse_header, verify_twitch_message, RevokedSubscription,
+    TwitchMessage, VerificationChallenge, NOTIFICATION_TYPE, SUBSCRIPTION_REVOKED_TYPE,
+    WEBHOOK_CALLBACK_VERIFICATION_TYPE,
+};
 
 const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
@@ -30,9 +40,19 @@ fn init_env() -> (String, u16) {
     (token, port)
 }
 
-#[derive(Debug)]
-enum TwitchCommand {
+#[derive(Debug, Clone)]
+pub enum TwitchCommand {
+    Ded,
+    EmoteOnly,
+    First(String),
+    FourTwenty,
+    Nice,
     Privmsg { message: String },
+    Pushup,
+    Situp,
+    StreamOnline,
+    Timeout { timeout: u32, user: String },
+    UnsupportedMessage,
 }
 
 /// Initialize the Twitch WebSocket Connection
@@ -196,7 +216,8 @@ async fn main() {
                             if let Err(e) = res {
                                 eprintln!("Failed to send message on ws: {:?}", e);
                             }
-                        }
+                        },
+                        _ => println!("Not supported yet")
                     }
                 },
                 else => {
@@ -236,20 +257,92 @@ async fn main() {
         .and(with_sender)
         .then(
             |headers: HeaderMap, bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
-                let res = tx
-                    .send(TwitchCommand::Privmsg {
-                        message: "henlo".to_string(),
-                    })
-                    .await;
-                if let Err(e) = res {
-                    eprintln!("Could not send message: {:?}", e);
+                let body_str = String::from_utf8(bytes.clone().into()).unwrap();
+
+                let verification = verify_twitch_message(&headers, &body_str);
+                if !verification {
+                    eprintln!("Message not from Twitch. Abort.");
+                    return warp::reply::with_status(
+                        "BAD_REQUEST".to_string(),
+                        StatusCode::BAD_REQUEST,
+                    );
                 }
+
+                println!("Twitch message verified");
+
+                let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
+                let twitch_message_type = parse_header(twitch_message_type);
+
+                if twitch_message_type == NOTIFICATION_TYPE {
+                    // This is where we got a notification
+                    // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
+                    let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
+                    let twitch_command = handle_webhook_message(message);
+
+                    match twitch_command {
+                        TwitchCommand::Ded => {
+                            // Send ws message from our ws server
+                        }
+                        TwitchCommand::First(ref username) => {
+                            let res = std::fs::write("first.txt", format!("First: {}", username));
+                            match res {
+                                Ok(()) => println!("Writing `first` succeeded"),
+                                Err(e) => eprintln!("Writing `first` failed: {:?}", e),
+                            }
+                        }
+                        TwitchCommand::StreamOnline => {
+                            let res = std::fs::write("first.txt", "First:");
+                            match res {
+                                Ok(()) => println!("Resetting `first` succeeded"),
+                                Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
+                            }
+                            // Send message to Discord
+                        }
+                        TwitchCommand::EmoteOnly => {
+                            let res = tx
+                                .send(TwitchCommand::Privmsg {
+                                    message: "/emoteonly".to_string(),
+                                })
+                                .await;
+
+                            if res.is_ok() {
+                                let tx1 = tx.clone();
+                                tokio::spawn(async move {
+                                    tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+                                    let _res = tx1
+                                        .send(TwitchCommand::Privmsg {
+                                            message: "/emoteonlyoff".to_string(),
+                                        })
+                                        .await;
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+
+                    let res = tx.send(twitch_command).await;
+                    if let Err(e) = res {
+                        eprintln!("Could not send message: {:?}", e);
+                    }
+
+                    return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
+                } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
+                    // This is when subscribing to a webhook
+                    let message = serde_json::from_str::<VerificationChallenge>(&body_str).unwrap();
+                    return warp::reply::with_status(message.challenge, StatusCode::OK);
+                } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
+                    // This is when webhook subscription was revoked
+                    let message = serde_json::from_str::<RevokedSubscription>(&body_str).unwrap();
+                    println!(
+                        "ERROR: Webhook subscription revoked. Reason: {}",
+                        message.subscription.status
+                    );
+                    return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
+                }
+
                 let body = String::from_utf8(bytes.to_vec()).unwrap();
                 println!("received POST request webhook: {:?}", body);
-                let data = serde_json::from_str::<Data>(&body).unwrap();
-                // data.name = "Jox".into();
-                // warp::reply::json(&data)
-                warp::reply::json(&data)
+                warp::reply::with_status(body, StatusCode::OK)
             },
         );
 
