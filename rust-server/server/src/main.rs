@@ -1,5 +1,8 @@
 use futures_util::{FutureExt, SinkExt, StreamExt};
-use tokio::{net::TcpStream, sync::mpsc};
+use tokio::{
+    net::TcpStream,
+    sync::{broadcast, mpsc},
+};
 use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use warp::{
     http::{HeaderMap, StatusCode},
@@ -53,6 +56,19 @@ pub enum TwitchCommand {
     StreamOnline,
     Timeout { timeout: u32, user: String },
     UnsupportedMessage,
+}
+
+mod websocket_utils {
+    use tokio::sync::broadcast;
+
+    pub fn broadcast_message<T>(tx: &broadcast::Sender<T>, msg: T)
+    where
+        T: std::fmt::Debug,
+    {
+        if let Err(e) = tx.send(msg) {
+            eprintln!("Could not send message to socket server: {:?}", e);
+        }
+    }
 }
 
 /// Initialize the Twitch WebSocket Connection
@@ -162,6 +178,7 @@ async fn main() {
     println!("Running on port {}", port);
 
     let (tx, mut rx) = mpsc::channel(32);
+    let (ws_client_tx, mut ws_client_rx) = broadcast::channel::<String>(32);
 
     // Run our WebSocket client in its own task.
     tokio::task::spawn(async move {
@@ -227,17 +244,36 @@ async fn main() {
         }
     });
 
+    // Clone the sender of the broadcast channel so that we can also use it in the
+    // webhook callback.
+    let ws_client_tx1 = ws_client_tx.clone();
+
+    // Create a new subscription on the sender for the broadcast channel.
+    let with_receiver = warp::any().map(move || ws_client_tx1.subscribe());
+
     // This is where our own client will connect
-    let websocket = warp::path("ws").and(warp::ws()).map(|ws: warp::ws::Ws| {
-        ws.on_upgrade(|websocket| {
-            let (tx, rx) = websocket.split();
-            rx.forward(tx).map(|result| {
-                if let Err(e) = result {
-                    eprintln!("websocket error: {:?}", e);
-                }
-            })
-        })
-    });
+    let websocket = warp::path("ws")
+        .and(warp::ws())
+        .and(with_receiver.clone())
+        .map(
+            |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
+                ws.on_upgrade(|websocket| async move {
+                    let (mut tx, rx) = websocket.split();
+
+                    while let Ok(msg) = ws_client_rx.recv().await {
+                        println!("Received message: {}", msg);
+                        tx.send(warp::ws::Message::text(msg)).await;
+                    }
+
+                    // Echo back messages from `rx`
+                    let _res = rx.forward(tx).map(|result| {
+                        if let Err(e) = result {
+                            eprintln!("websocket error: {:?}", e);
+                        }
+                    });
+                })
+            },
+        );
 
     // Root path. Just return some text for now.
     let root = warp::path::end().map(|| "Hello World!");
@@ -248,15 +284,24 @@ async fn main() {
         name: String,
     }
 
+    // Clone the sending part of the broadcast channel for the websocket server.
+    let with_ws_sender = warp::any().map(move || ws_client_tx.clone());
+
+    // Clone the sending part of the mpsc channel for the websocket client.
     let with_sender = warp::any().map(move || tx.clone());
+
     // This is where Twitch will send their callbacks
     let post_routes = warp::post()
         .and(warp::path!("twitch" / "webhooks" / "callback"))
         .and(warp::header::headers_cloned())
         .and(warp::body::bytes())
         .and(with_sender)
+        .and(with_ws_sender)
         .then(
-            |headers: HeaderMap, bytes: bytes::Bytes, tx: mpsc::Sender<TwitchCommand>| async move {
+            |headers: HeaderMap,
+             bytes: bytes::Bytes,
+             tx: mpsc::Sender<TwitchCommand>,
+             ws_tx: broadcast::Sender<String>| async move {
                 let body_str = String::from_utf8(bytes.clone().into()).unwrap();
 
                 let verification = verify_twitch_message(&headers, &body_str);
@@ -282,6 +327,13 @@ async fn main() {
                     match twitch_command {
                         TwitchCommand::Ded => {
                             // Send ws message from our ws server
+                            websocket_utils::broadcast_message(&ws_tx, "Death".to_string());
+                        }
+                        TwitchCommand::FourTwenty => {
+                            websocket_utils::broadcast_message(&ws_tx, "420".to_string());
+                        }
+                        TwitchCommand::Nice => {
+                            websocket_utils::broadcast_message(&ws_tx, "Nice".to_string());
                         }
                         TwitchCommand::First(ref username) => {
                             let res = std::fs::write("first.txt", format!("First: {}", username));
@@ -296,7 +348,7 @@ async fn main() {
                                 Ok(()) => println!("Resetting `first` succeeded"),
                                 Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
                             }
-                            // Send message to Discord
+                            // TODO: Send message to Discord
                         }
                         TwitchCommand::EmoteOnly => {
                             let res = tx
