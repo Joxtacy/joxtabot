@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "twitch-utils",
     "server",
     "twitch_irc_parser",
 ]
