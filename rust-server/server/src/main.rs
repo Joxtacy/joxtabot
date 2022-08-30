@@ -1,15 +1,12 @@
-use futures_util::{FutureExt, SinkExt, StreamExt};
-use tokio::{
-    net::TcpStream,
-    sync::{broadcast, mpsc},
-};
-use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use futures_util::{SinkExt, StreamExt};
+use tokio::sync::{broadcast, mpsc};
+use tokio_tungstenite::{connect_async, tungstenite::Message};
 use warp::{
     http::{HeaderMap, StatusCode},
     Filter,
 };
 
-use twitch_irc_parser::{parse_message, Command, ParsedTwitchMessage, Tag};
+use twitch_irc_parser::parse_message;
 
 mod api;
 use api::webhooks::twitch::{
@@ -22,25 +19,6 @@ const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
 // Not sure how to support SSL with tokio-tungstenite
 const _TWITCH_WS_URL_SSL: &str = "wss://irc-ws.chat.twitch.tv:443";
-
-///
-/// Hi @everyone! I am **live**!
-/// > Playing: {game}
-/// > Title: {title}
-/// https://twitch.tv/joxtacy
-///
-fn create_stream_online_message(game: &str, title: &str) -> String {
-    format!(
-        "Hi @everyone! I am **live**!\n\
-         > Playing: {}\n\
-         > Title: {}\n\
-         https://twitch.tv/joxtacy",
-        game, title
-    )
-}
-fn create_privmsg(channel: &str, message: &str) -> String {
-    format!("PRIVMSG #{} :{}", channel, message)
-}
 
 fn init_env() -> (String, u16) {
     std::env::set_var("RUST_LOG", "debug");
@@ -58,23 +36,75 @@ fn init_env() -> (String, u16) {
     (token, port)
 }
 
-#[derive(Debug, Clone)]
-pub enum TwitchCommand {
-    Ded,
-    EmoteOnly,
-    First(String),
-    FourTwenty,
-    Nice,
-    Privmsg { message: String },
-    Pushup,
-    Situp,
-    StreamOnline,
-    Timeout { timeout: u32, user: String },
-    UnsupportedMessage,
+mod string_utils {
+    ///
+    /// Hi @everyone! I am **live**!
+    /// > Playing: {game}
+    /// > Title: {title}
+    /// https://twitch.tv/joxtacy
+    ///
+    pub fn create_stream_online_message(game: &str, title: &str) -> String {
+        format!(
+            "Hi @everyone! I am **live**!\n\
+             > Playing: {}\n\
+             > Title: {}\n\
+             https://twitch.tv/joxtacy",
+            game, title
+        )
+    }
+
+    pub fn create_privmsg(channel: &str, message: &str) -> String {
+        format!("PRIVMSG #{} :{}", channel, message)
+    }
 }
 
 mod websocket_utils {
-    use tokio::sync::broadcast;
+    use crate::string_utils;
+    use futures_util::SinkExt;
+    use tokio::{net::TcpStream, sync::broadcast};
+    use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+    use twitch_irc_parser::{Command, ParsedTwitchMessage, Tag};
+
+    type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
+    #[derive(Debug, Clone)]
+    pub enum TwitchCommand {
+        Ded,
+        EmoteOnly,
+        First(String),
+        FourTwenty,
+        Nice,
+        Privmsg { message: String },
+        Pushup,
+        Situp,
+        StreamOnline,
+        Timeout { timeout: u32, user: String },
+        UnsupportedMessage,
+    }
+
+    /// Initialize the Twitch WebSocket Connection
+    ///
+    /// Send a `PASS` message to authorize
+    /// Send a `NICK` message to establish username
+    /// Send a `JOIN` message to join the IRC channel
+    /// Send a `CAP REQ /membership` message
+    /// Send a `CAP REQ /tags` message to get tags with messages
+    pub async fn init_ws(ws_stream: &mut WsStream, token: &str) {
+        ws_stream
+            .send(format!("PASS {}", token).into())
+            .await
+            .unwrap();
+        ws_stream.send("NICK joxtabot".into()).await.unwrap();
+        ws_stream.send("JOIN #joxtacy".into()).await.unwrap();
+        ws_stream
+            .send("CAP REQ :twitch.tv/membership".into())
+            .await
+            .unwrap();
+        ws_stream
+            .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
+            .await
+            .unwrap();
+    }
 
     pub fn broadcast_message<T>(tx: &broadcast::Sender<T>, msg: T)
     where
@@ -84,103 +114,76 @@ mod websocket_utils {
             eprintln!("Could not send message to socket server: {:?}", e);
         }
     }
-}
 
-/// Initialize the Twitch WebSocket Connection
-///
-/// Send a `PASS` message to authorize
-/// Send a `NICK` message to establish username
-/// Send a `JOIN` message to join the IRC channel
-/// Send a `CAP REQ /membership` message
-/// Send a `CAP REQ /tags` message to get tags with messages
-async fn init_ws(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>, token: &str) {
-    ws_stream
-        .send(format!("PASS {}", token).into())
-        .await
-        .unwrap();
-    ws_stream.send("NICK joxtabot".into()).await.unwrap();
-    ws_stream.send("JOIN #joxtacy".into()).await.unwrap();
-    ws_stream
-        .send("CAP REQ :twitch.tv/membership".into())
-        .await
-        .unwrap();
-    ws_stream
-        .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
-        .await
-        .unwrap();
-}
+    /// Handle the parsed Twitch IRC message
+    pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessage) {
+        match message.command {
+            // Respond with a PONG to keep message alive
+            Command::PING => {
+                println!("Sending PONG...");
+                let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
 
-/// Handle the parsed Twitch IRC message
-async fn handle_message(
-    ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    message: ParsedTwitchMessage,
-) {
-    match message.command {
-        // Respond with a PONG to keep message alive
-        Command::PING => {
-            println!("Sending PONG...");
-            let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
-
-            if let Err(e) = res {
-                eprintln!("COULD NOT SEND PONG: {e:?}");
-            } else {
-                println!("PONG sent");
-            }
-        }
-        Command::JOIN(channel) => {
-            let nick = match message.source {
-                Some(source) => source.nick,
-                None => None,
-            };
-
-            match nick {
-                Some(nick) => {
-                    println!("{} joined #{}", nick, channel);
+                if let Err(e) = res {
+                    eprintln!("COULD NOT SEND PONG: {e:?}");
+                } else {
+                    println!("PONG sent");
                 }
-                None => {}
             }
-        }
-        Command::PART(channel) => {
-            let nick = match message.source {
-                Some(source) => source.nick,
-                None => None,
-            };
+            Command::JOIN(channel) => {
+                let nick = match message.source {
+                    Some(source) => source.nick,
+                    None => None,
+                };
 
-            match nick {
-                Some(nick) => {
-                    println!("{} left #{}", nick, channel);
+                match nick {
+                    Some(nick) => {
+                        println!("{} joined #{}", nick, channel);
+                    }
+                    None => {}
                 }
-                None => {}
             }
-        }
-        Command::PRIVMSG {
-            channel,
-            message,
-            tags,
-            ..
-        } => {
-            let display_name = if let Some(tags) = tags {
-                let dis = tags.get("display-name");
-                if let Some(Tag::DisplayName(display_name)) = dis {
-                    display_name.clone()
+            Command::PART(channel) => {
+                let nick = match message.source {
+                    Some(source) => source.nick,
+                    None => None,
+                };
+
+                match nick {
+                    Some(nick) => {
+                        println!("{} left #{}", nick, channel);
+                    }
+                    None => {}
+                }
+            }
+            Command::PRIVMSG {
+                channel,
+                message,
+                tags,
+                ..
+            } => {
+                let display_name = if let Some(tags) = tags {
+                    let dis = tags.get("display-name");
+                    if let Some(Tag::DisplayName(display_name)) = dis {
+                        display_name.clone()
+                    } else {
+                        "".to_string()
+                    }
                 } else {
                     "".to_string()
-                }
-            } else {
-                "".to_string()
-            };
-            println!("@{} #{}: {}", display_name, channel, message);
+                };
+                println!("@{} #{}: {}", display_name, channel, message);
 
-            if message.contains("catJAM") {
-                let response = create_privmsg(&channel, "catJAM");
-                ws_stream.send(response.into()).await.unwrap();
-            } else if message.contains("widepeepoHappy") {
-                let response = create_privmsg(&channel, "widepeepoHappy");
-                ws_stream.send(response.into()).await.unwrap();
+                if message.contains("catJAM") {
+                    let response = string_utils::create_privmsg(&channel, "catJAM");
+                    ws_stream.send(response.into()).await.unwrap();
+                } else if message.contains("widepeepoHappy") {
+                    let response = string_utils::create_privmsg(&channel, "widepeepoHappy");
+                    ws_stream.send(response.into()).await.unwrap();
+                }
             }
-        }
-        _ => {
-            println!("UNSUPPORTED MESSAGE");
+            _ => {
+                println!("UNSUPPORTED MESSAGE");
+            }
         }
     }
 }
@@ -204,7 +207,7 @@ async fn main() {
         println!("Websocket client connected to Twitch");
 
         // Init the WebSocket connection to our Twitch channel.
-        init_ws(&mut ws_stream, &token).await;
+        websocket_utils::init_ws(&mut ws_stream, &token).await;
 
         loop {
             tokio::select! {
@@ -212,24 +215,21 @@ async fn main() {
                     if let Ok(msg) = msg {
                         match msg {
                             Message::Text(text) => {
-                                println!("ws TEXT:");
                                 let split = text.split("\r\n");
                                 let filtered = split
                                     .filter(|s| !s.is_empty());
-
                                 for msg in filtered {
-                                    println!("msg: {}", msg);
+                                    println!("Twitch Message: {}", msg);
 
                                     // Parse the Twitch Message
                                     let parsed_message = parse_message(msg);
 
                                     // Match on the different Twitch Commands
-                                    handle_message(&mut ws_stream, parsed_message).await;
+                                    websocket_utils::handle_message(&mut ws_stream, parsed_message).await;
                                 }
                             },
                             Message::Binary(bin) => {
-                                println!("ws BINARY:");
-                                println!("{bin:?}");
+                                println!("WS BINARY: {:?}", bin);
                             },
                             _ => {
                                 println!("ws client: We got something else");
@@ -242,14 +242,14 @@ async fn main() {
                 },
                 Some(msg) = rx.recv() => {
                     match msg {
-                        TwitchCommand::Privmsg { message } => {
-                            let priv_msg = create_privmsg("joxtacy", &message);
+                        websocket_utils::TwitchCommand::Privmsg { message } => {
+                            let priv_msg = string_utils::create_privmsg("joxtacy", &message);
                             let res = ws_stream.send(priv_msg.into()).await;
                             if let Err(e) = res {
-                                eprintln!("Failed to send message on ws: {:?}", e);
+                                eprintln!("Failed to send message on ws to Twitch: {:?}", e);
                             }
                         },
-                        _ => println!("Not supported yet")
+                        _ => println!("MPSC Twitch Command: Not supported yet")
                     }
                 },
                 else => {
@@ -293,12 +293,6 @@ async fn main() {
     // Root path. Just return some text for now.
     let root = warp::path::end().map(|| "Hello World!");
 
-    use serde_derive::{Deserialize, Serialize};
-    #[derive(Debug, Deserialize, Serialize)]
-    struct Data {
-        name: String,
-    }
-
     // Clone the sending part of the broadcast channel for the websocket server.
     let with_ws_sender = warp::any().map(move || ws_client_tx.clone());
 
@@ -315,8 +309,10 @@ async fn main() {
         .then(
             |headers: HeaderMap,
              bytes: bytes::Bytes,
-             tx: mpsc::Sender<TwitchCommand>,
+             tx: mpsc::Sender<websocket_utils::TwitchCommand>,
              ws_tx: broadcast::Sender<String>| async move {
+                use websocket_utils::TwitchCommand;
+
                 let body_str = String::from_utf8(bytes.clone().into()).unwrap();
 
                 let verification = verify_twitch_message(&headers, &body_str);
@@ -382,12 +378,12 @@ async fn main() {
 
                                 let message = if !stream_info.data.is_empty() {
                                     let stream_info = stream_info.data.first().unwrap();
-                                    create_stream_online_message(
+                                    string_utils::create_stream_online_message(
                                         &stream_info.game_name,
                                         &stream_info.title,
                                     )
                                 } else {
-                                    create_stream_online_message(
+                                    string_utils::create_stream_online_message(
                                         "something went wrong",
                                         "something went wrong",
                                     )

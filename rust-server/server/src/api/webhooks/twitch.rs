@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use warp::http::{HeaderMap, HeaderValue};
 
-use crate::TwitchCommand;
+use crate::websocket_utils::TwitchCommand;
 
 // Webhook subscription verification challenge example
 // {
