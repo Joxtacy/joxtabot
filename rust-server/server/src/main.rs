@@ -23,6 +23,21 @@ const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 // Not sure how to support SSL with tokio-tungstenite
 const _TWITCH_WS_URL_SSL: &str = "wss://irc-ws.chat.twitch.tv:443";
 
+///
+/// Hi @everyone! I am **live**!
+/// > Playing: {game}
+/// > Title: {title}
+/// https://twitch.tv/joxtacy
+///
+fn create_stream_online_message(game: &str, title: &str) -> String {
+    format!(
+        "Hi @everyone! I am **live**!\n\
+         > Playing: {}\n\
+         > Title: {}\n\
+         https://twitch.tv/joxtacy",
+        game, title
+    )
+}
 fn create_privmsg(channel: &str, message: &str) -> String {
     format!("PRIVMSG #{} :{}", channel, message)
 }
@@ -348,7 +363,38 @@ async fn main() {
                                 Ok(()) => println!("Resetting `first` succeeded"),
                                 Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
                             }
-                            // TODO: Send message to Discord
+
+                            let token = std::env::var("TWITCH_APP_ACCESS_TOKEN").unwrap();
+                            let client_id = std::env::var("TWITCH_CLIENT_ID").unwrap();
+                            let user_id = std::env::var("TWITCH_JOXTACY_USER_ID")
+                                .unwrap()
+                                .parse()
+                                .unwrap();
+
+                            if let Ok(stream_info) =
+                                twitch_utils::get_stream_info(token, client_id, user_id).await
+                            {
+                                let token = std::env::var("DISCORD_BOT_TOKEN").unwrap();
+                                let channel_id = std::env::var("DISCORD_JOXTACY_IS_LIVE_CHANNELID")
+                                    .unwrap()
+                                    .parse()
+                                    .unwrap();
+
+                                let message = if !stream_info.data.is_empty() {
+                                    let stream_info = stream_info.data.first().unwrap();
+                                    create_stream_online_message(
+                                        &stream_info.game_name,
+                                        &stream_info.title,
+                                    )
+                                } else {
+                                    create_stream_online_message(
+                                        "something went wrong",
+                                        "something went wrong",
+                                    )
+                                };
+                                let _res =
+                                    discord_utils::create_message(token, channel_id, message).await;
+                            }
                         }
                         TwitchCommand::EmoteOnly => {
                             let res = tx
