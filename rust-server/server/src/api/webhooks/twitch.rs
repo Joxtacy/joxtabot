@@ -193,60 +193,13 @@ pub const WEBHOOK_CALLBACK_VERIFICATION_TYPE: &str = "webhook_callback_verificat
 /// when the webhook has been revoked
 pub const SUBSCRIPTION_REVOKED_TYPE: &str = "revocation";
 
-// #[post("/twitch/webhooks/callback")]
-// pub async fn twitch_webhook(req: HttpRequest, bytes: Bytes) -> HttpResponse {
-//     // pub async fn twitch_webhook(req: HttpRequest, item: Json<TwitchMessage>) -> HttpResponse {
-//     let body = String::from_utf8(bytes.to_vec()).unwrap();
-//
-//     let verified = verify_twitch_message(req.headers(), &body);
-//     if !verified {
-//         return HttpResponseBuilder::new(StatusCode::NOT_ACCEPTABLE).finish();
-//     }
-//
-//     let headers = req.headers();
-//     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
-//     let twitch_message_type = parse_header(twitch_message_type);
-//
-//     if twitch_message_type == NOTIFICATION_TYPE {
-//         // This is where we got a notification
-//         // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
-//         let message = serde_json::from_str::<TwitchMessage>(&body).unwrap();
-//
-//         handle_message(message);
-//
-//         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
-//     } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
-//         // This is when subscribing to a webhook
-//         let message = serde_json::from_str::<VerificationChallenge>(&body).unwrap();
-//
-//         return HttpResponseBuilder::new(StatusCode::OK).body(message.challenge);
-//     } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
-//         // This is when webhook subscription was revoked
-//         let message = serde_json::from_str::<RevokedSubscription>(&body).unwrap();
-//
-//         println!(
-//             "ERROR: Webhook subscription revoked. Reason: {}",
-//             message.subscription.status
-//         );
-//         return HttpResponseBuilder::new(StatusCode::NO_CONTENT).finish();
-//     }
-//
-//     HttpResponseBuilder::new(StatusCode::OK).json("I got you, fam".to_owned())
-// }
-
 /// Handles the webhook message
 pub fn handle_webhook_message(message: TwitchMessage) -> TwitchCommand {
     let message_type = message.subscription.message_type;
 
     match &message_type[..] {
-        "stream.online" => {
-            // TODO: Reset `first` overlay message
-            // TODO: Send online notification to Discord
-            println!("STREAM ONLINE! SEND MESSAGE TO DISCORD");
-            TwitchCommand::StreamOnline
-        }
+        "stream.online" => TwitchCommand::StreamOnline,
         "channel.channel_points_custom_reward_redemption.add" => {
-            // TODO: Handle rewards
             let reward_title = message.event.reward.title;
 
             match &reward_title[..] {
