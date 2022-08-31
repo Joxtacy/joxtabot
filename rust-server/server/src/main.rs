@@ -196,7 +196,7 @@ async fn main() {
     println!("Running on port {}", port);
 
     let (tx, mut rx) = mpsc::channel(32);
-    let (ws_client_tx, mut ws_client_rx) = broadcast::channel::<String>(32);
+    let (ws_client_tx, _) = broadcast::channel::<String>(32);
 
     // Run our WebSocket client in its own task.
     tokio::task::spawn(async move {
@@ -274,28 +274,62 @@ async fn main() {
     let with_receiver = warp::any().map(move || ws_client_tx1.subscribe());
 
     // This is where our own client will connect
-    let websocket = warp::path("ws")
-        .and(warp::ws())
-        .and(with_receiver.clone())
-        .map(
-            |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
-                ws.on_upgrade(|websocket| async move {
-                    let (mut tx, rx) = websocket.split();
+    let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
+        |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
+            ws.on_upgrade(|websocket| async move {
+                let (mut tx, mut rx) = websocket.split();
 
-                    while let Ok(msg) = ws_client_rx.recv().await {
-                        println!("Received message: {}", msg);
-                        tx.send(warp::ws::Message::text(msg)).await;
+                // TODO: What is the best solution here? Just breaking out on errors when
+                // sending, or listening for `None` being received on the socket indicating the
+                // client has disconnected?
+                // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
+                loop {
+                    tokio::select! {
+                        None = rx.next() => {
+                            println!("Client disconnected");
+                            break;
+                        },
+                        Ok(msg) = ws_client_rx.recv() => {
+                            println!("Received message: {}", msg);
+                            let res = tx.send(warp::ws::Message::text(msg)).await;
+                            println!("Message sent...");
+                            if let Err(e) = res {
+                                eprintln!(
+                                    "Could not send message to our websocket server. Reason: {:?}",
+                                    e
+                                    );
+                                // If we end up here we exit out of the loop since there
+                                // client is no longer connected.
+                                break;
+                            }
+
+                        },
                     }
+                }
+                // while let Ok(msg) = ws_client_rx.recv().await {
+                //     println!("Received message: {}", msg);
+                //     let res = tx.send(warp::ws::Message::text(msg)).await;
+                //     println!("Message sent...");
+                //     if let Err(e) = res {
+                //         eprintln!(
+                //             "Could not send message to our websocket server. Reason: {:?}",
+                //             e
+                //         );
+                //         // If we end up here we exit out of the loop since there
+                //         // client is no longer connected.
+                //         break;
+                //     }
+                // }
 
-                    // Echo back messages from `rx`
-                    let _res = rx.forward(tx).map(|result| {
-                        if let Err(e) = result {
-                            eprintln!("websocket error: {:?}", e);
-                        }
-                    });
-                })
-            },
-        );
+                // Echo back messages from `rx`
+                // let _res = rx.forward(tx).map(|result| {
+                //     if let Err(e) = result {
+                //         eprintln!("websocket error: {:?}", e);
+                //     }
+                // });
+            })
+        },
+    );
 
     // Root path. Just return some text for now.
     let root = warp::path::end().map(|| "Hello World!");
