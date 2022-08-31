@@ -201,10 +201,17 @@ async fn main() {
     // Run our WebSocket client in its own task.
     tokio::task::spawn(async move {
         // Connect our WebSocket client to Twitch.
-        let (mut ws_stream, _) = connect_async(TWITCH_WS_URL)
-            .await
-            .expect("Could not connect to Twitch IRC server");
+        let mut res = connect_async(TWITCH_WS_URL).await;
+
+        while let Err(e) = res {
+            eprintln!("Failed to connect to Twitch: {:?}", e);
+            eprintln!("Retrying...");
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            res = connect_async(TWITCH_WS_URL).await;
+        }
         println!("Websocket client connected to Twitch");
+
+        let (mut ws_stream, _) = res.unwrap();
 
         // Init the WebSocket connection to our Twitch channel.
         websocket_utils::init_ws(&mut ws_stream, &token).await;
