@@ -120,13 +120,13 @@ mod websocket_utils {
         match message.command {
             // Respond with a PONG to keep message alive
             Command::PING => {
-                println!("Sending PONG...");
+                println!("[WS CLIENT] Sending PONG...");
                 let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
 
                 if let Err(e) = res {
-                    eprintln!("COULD NOT SEND PONG: {e:?}");
+                    eprintln!("[WS CLIENT] COULD NOT SEND PONG: {e:?}");
                 } else {
-                    println!("PONG sent");
+                    println!("[WS CLIENT] PONG sent");
                 }
             }
             Command::JOIN(channel) => {
@@ -137,7 +137,7 @@ mod websocket_utils {
 
                 match nick {
                     Some(nick) => {
-                        println!("{} joined #{}", nick, channel);
+                        println!("[WS CLIENT] {} joined #{}", nick, channel);
                     }
                     None => {}
                 }
@@ -150,7 +150,7 @@ mod websocket_utils {
 
                 match nick {
                     Some(nick) => {
-                        println!("{} left #{}", nick, channel);
+                        println!("[WS CLIENT] {} left #{}", nick, channel);
                     }
                     None => {}
                 }
@@ -171,7 +171,7 @@ mod websocket_utils {
                 } else {
                     "".to_string()
                 };
-                println!("@{} #{}: {}", display_name, channel, message);
+                println!("[WS CLIENT] @{} #{}: {}", display_name, channel, message);
 
                 if message.contains("catJAM") {
                     let response = string_utils::create_privmsg(&channel, "catJAM");
@@ -182,7 +182,7 @@ mod websocket_utils {
                 }
             }
             _ => {
-                println!("UNSUPPORTED MESSAGE");
+                println!("[WS CLIENT] UNSUPPORTED TWITCH COMMAND");
             }
         }
     }
@@ -204,12 +204,12 @@ async fn main() {
         let mut res = connect_async(TWITCH_WS_URL).await;
 
         while let Err(e) = res {
-            eprintln!("Failed to connect to Twitch: {:?}", e);
-            eprintln!("Retrying...");
+            eprintln!("[WS CLIENT] Failed to connect to Twitch: {:?}", e);
+            eprintln!("[WS CLIENT] Retrying...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             res = connect_async(TWITCH_WS_URL).await;
         }
-        println!("Websocket client connected to Twitch");
+        println!("[WS CLIENT] Connected to Twitch");
 
         let (mut ws_stream, _) = res.unwrap();
 
@@ -226,7 +226,7 @@ async fn main() {
                                 let filtered = split
                                     .filter(|s| !s.is_empty());
                                 for msg in filtered {
-                                    println!("Twitch Message: {}", msg);
+                                    println!("[WS CLIENT] Twitch Message: {}", msg);
 
                                     // Parse the Twitch Message
                                     let parsed_message = parse_message(msg);
@@ -236,15 +236,15 @@ async fn main() {
                                 }
                             },
                             Message::Binary(bin) => {
-                                println!("WS BINARY: {:?}", bin);
+                                println!("[WS CLIENT] WS BINARY: {:?}", bin);
                             },
-                            _ => {
-                                println!("ws client: We got something else");
+                            msg => {
+                                println!("[WS CLIENT] We got something else: {:?}", msg);
                             }
                         }
                     } else if let Err(e) = msg {
                         // We should try to reconnect here
-                        println!("ws client err: {:?}", e);
+                        println!("[WS CLIENT] Error: {:?}", e);
                     }
                 },
                 Some(msg) = rx.recv() => {
@@ -253,10 +253,10 @@ async fn main() {
                             let priv_msg = string_utils::create_privmsg("joxtacy", &message);
                             let res = ws_stream.send(priv_msg.into()).await;
                             if let Err(e) = res {
-                                eprintln!("Failed to send message on ws to Twitch: {:?}", e);
+                                eprintln!("[WS CLIENT] Failed to send message to Twitch: {:?}", e);
                             }
                         },
-                        _ => println!("MPSC Twitch Command: Not supported yet")
+                        command => println!("MPSC Twitch Command: Not supported yet: {:?}", command)
                     }
                 },
                 else => {
@@ -277,56 +277,48 @@ async fn main() {
     let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
         |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
             ws.on_upgrade(|websocket| async move {
+                println!("[WS SERVER] User connected");
+
                 let (mut tx, mut rx) = websocket.split();
 
-                // TODO: What is the best solution here? Just breaking out on errors when
-                // sending, or listening for `None` being received on the socket indicating the
-                // client has disconnected?
                 // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
                 loop {
                     tokio::select! {
-                        None = rx.next() => {
-                            println!("Client disconnected");
-                            break;
+                        msg = rx.next() => {
+                            match msg {
+                                Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                                None => {
+                                    println!("[WS SERVER] User disconnected");
+                                    break;
+                                }
+                            }
                         },
-                        Ok(msg) = ws_client_rx.recv() => {
-                            println!("Received message: {}", msg);
-                            let res = tx.send(warp::ws::Message::text(msg)).await;
-                            println!("Message sent...");
-                            if let Err(e) = res {
-                                eprintln!(
-                                    "Could not send message to our websocket server. Reason: {:?}",
-                                    e
-                                    );
-                                // If we end up here we exit out of the loop since there
-                                // client is no longer connected.
-                                break;
+                        msg = ws_client_rx.recv() => {
+                            match msg {
+                                Ok(msg) => {
+                                    println!("[WS SERVER] Received message from broadcast: {}", msg);
+                                    let res = tx.send(warp::ws::Message::text(msg)).await;
+                                    if let Err(e) = res {
+                                        eprintln!(
+                                            "[WS SERVER] Could not send message to client. Reason: {:?}",
+                                            e
+                                            );
+                                        // If we end up here we exit out of the loop since the
+                                        // client is no longer connected.
+                                        break;
+                                    }
+                                },
+                                Err(e) => {
+                                    eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
+                                }
                             }
 
                         },
+                        else => {
+                            println!("Else branch executed");
+                        }
                     }
                 }
-                // while let Ok(msg) = ws_client_rx.recv().await {
-                //     println!("Received message: {}", msg);
-                //     let res = tx.send(warp::ws::Message::text(msg)).await;
-                //     println!("Message sent...");
-                //     if let Err(e) = res {
-                //         eprintln!(
-                //             "Could not send message to our websocket server. Reason: {:?}",
-                //             e
-                //         );
-                //         // If we end up here we exit out of the loop since there
-                //         // client is no longer connected.
-                //         break;
-                //     }
-                // }
-
-                // Echo back messages from `rx`
-                // let _res = rx.forward(tx).map(|result| {
-                //     if let Err(e) = result {
-                //         eprintln!("websocket error: {:?}", e);
-                //     }
-                // });
             })
         },
     );
@@ -457,7 +449,7 @@ async fn main() {
 
                     let res = tx.send(twitch_command).await;
                     if let Err(e) = res {
-                        eprintln!("Could not send message: {:?}", e);
+                        eprintln!("Could not send message to our MPSC channel: {:?}", e);
                     }
 
                     return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
@@ -487,7 +479,7 @@ async fn main() {
 }
 
 fn get_env_port() -> u16 {
-    let default_port = 3030;
+    let default_port = 8000;
     std::env::var("RUST_PORT")
         .unwrap_or_else(|_| default_port.to_string())
         .parse::<u16>()

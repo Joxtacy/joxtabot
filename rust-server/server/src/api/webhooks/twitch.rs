@@ -25,7 +25,6 @@ use crate::websocket_utils::TwitchCommand;
 //     "created_at": "2019-11-16T10:11:12.123Z"
 //   }
 // }
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VerificationChallenge {
     pub challenge: String,
@@ -89,33 +88,6 @@ pub struct RevokedSubscription {
 //             "prompt": "Redeem Your Test Reward from CLI"
 //         },
 //         "redeemed_at": "2022-07-13T04:03:22.577859Z"
-//     }
-// }
-
-// Stream up example
-// {
-//     "subscription": {
-//         "id": "8840d0b3-8488-f599-3f18-fc273347a6d3",
-//         "status": "enabled",
-//         "type": "stream.online",
-//         "version": "1",
-//         "condition": {
-//             "broadcaster_user_id": "54605357"
-//         },
-//         "transport": {
-//             "method": "webhook",
-//             "callback": "null"
-//         },
-//         "created_at": "2022-07-13T04:05:05.579848Z",
-//         "cost": 0
-//     },
-//     "event": {
-//         "id": "4878643",
-//         "broadcaster_user_id": "54605357",
-//         "broadcaster_user_login": "testBroadcaster",
-//         "broadcaster_user_name": "testBroadcaster",
-//         "type": "live",
-//         "started_at": "2022-07-13T04:05:05.579868Z"
 //     }
 // }
 
