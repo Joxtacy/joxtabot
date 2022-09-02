@@ -120,13 +120,10 @@ mod websocket_utils {
         match message.command {
             // Respond with a PONG to keep message alive
             Command::PING => {
-                println!("[WS CLIENT] Sending PONG...");
                 let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
 
                 if let Err(e) = res {
                     eprintln!("[WS CLIENT] COULD NOT SEND PONG: {e:?}");
-                } else {
-                    println!("[WS CLIENT] PONG sent");
                 }
             }
             Command::JOIN(channel) => {
@@ -181,8 +178,11 @@ mod websocket_utils {
                     ws_stream.send(response.into()).await.unwrap();
                 }
             }
-            _ => {
-                println!("[WS CLIENT] UNSUPPORTED TWITCH COMMAND");
+            unsupported_message => {
+                println!(
+                    "[WS CLIENT] UNSUPPORTED TWITCH COMMAND: {:?}",
+                    unsupported_message
+                );
             }
         }
     }
@@ -315,7 +315,7 @@ async fn main() {
 
                         },
                         else => {
-                            println!("Else branch executed");
+                            println!("[WS SERVER] Else branch executed");
                         }
                     }
                 }
@@ -350,27 +350,25 @@ async fn main() {
 
                 let verification = verify_twitch_message(&headers, &body_str);
                 if !verification {
-                    eprintln!("Message not from Twitch. Abort.");
+                    eprintln!("[WEBHOOK] Message not from Twitch. Abort.");
                     return warp::reply::with_status(
                         "BAD_REQUEST".to_string(),
                         StatusCode::BAD_REQUEST,
                     );
                 }
 
-                println!("Twitch message verified");
+                println!("[WEBHOOK] Twitch message verified");
 
                 let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
                 let twitch_message_type = parse_header(twitch_message_type);
 
                 if twitch_message_type == NOTIFICATION_TYPE {
-                    // This is where we got a notification
                     // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
                     let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
                     let twitch_command = handle_webhook_message(message);
 
                     match twitch_command {
                         TwitchCommand::Ded => {
-                            // Send ws message from our ws server
                             websocket_utils::broadcast_message(&ws_tx, "Death".to_string());
                         }
                         TwitchCommand::FourTwenty => {
@@ -444,12 +442,17 @@ async fn main() {
                                 });
                             }
                         }
-                        _ => {}
+                        ref unsupported_message => {
+                            eprintln!("[WEBHOOK] Unsupported Message: {:?}", unsupported_message);
+                        }
                     }
 
                     let res = tx.send(twitch_command).await;
                     if let Err(e) = res {
-                        eprintln!("Could not send message to our MPSC channel: {:?}", e);
+                        eprintln!(
+                            "[WEBHOOK] Could not send message to our MPSC channel: {:?}",
+                            e
+                        );
                     }
 
                     return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
@@ -461,14 +464,14 @@ async fn main() {
                     // This is when webhook subscription was revoked
                     let message = serde_json::from_str::<RevokedSubscription>(&body_str).unwrap();
                     println!(
-                        "ERROR: Webhook subscription revoked. Reason: {}",
+                        "[WEBHOOK] ERROR: Webhook subscription revoked. Reason: {}",
                         message.subscription.status
                     );
                     return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
                 }
 
                 let body = String::from_utf8(bytes.to_vec()).unwrap();
-                println!("received POST request webhook: {:?}", body);
+                println!("[WEBHOOK] Received POST request: {:?}", body);
                 warp::reply::with_status(body, StatusCode::OK)
             },
         );
