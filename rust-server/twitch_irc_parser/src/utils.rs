@@ -523,6 +523,7 @@ pub fn parse_command(raw_command: &str, raw_tags: &str) -> Command {
             message: parameters.to_string(),
             tags,
         },
+        "PART" => Command::PART(channel.to_string()),
         "PING" => Command::PING,
         "PRIVMSG" => {
             let bot_command = parse_bot_command(parameters);
