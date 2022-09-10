@@ -4,6 +4,7 @@ use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use warp::{
     http::{HeaderMap, StatusCode},
+    ws::WebSocket,
     Filter,
 };
 
@@ -275,51 +276,8 @@ async fn main() {
 
     // This is where our own client will connect
     let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
-        |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
-            ws.on_upgrade(|websocket| async move {
-                println!("[WS SERVER] User connected");
-
-                let (mut tx, mut rx) = websocket.split();
-
-                // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
-                loop {
-                    tokio::select! {
-                        msg = rx.next() => {
-                            match msg {
-                                Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
-                                None => {
-                                    println!("[WS SERVER] User disconnected");
-                                    break;
-                                }
-                            }
-                        },
-                        msg = ws_client_rx.recv() => {
-                            match msg {
-                                Ok(msg) => {
-                                    println!("[WS SERVER] Received message from broadcast: {}", msg);
-                                    let res = tx.send(warp::ws::Message::text(msg)).await;
-                                    if let Err(e) = res {
-                                        eprintln!(
-                                            "[WS SERVER] Could not send message to client. Reason: {:?}",
-                                            e
-                                            );
-                                        // If we end up here we exit out of the loop since the
-                                        // client is no longer connected.
-                                        break;
-                                    }
-                                },
-                                Err(e) => {
-                                    eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
-                                }
-                            }
-
-                        },
-                        else => {
-                            println!("[WS SERVER] Else branch executed");
-                        }
-                    }
-                }
-            })
+        |ws: warp::ws::Ws, ws_client_rx: broadcast::Receiver<String>| {
+            ws.on_upgrade(move |websocket| client_connected(websocket, ws_client_rx))
         },
     );
 
@@ -340,147 +298,199 @@ async fn main() {
         .and(with_sender)
         .and(with_ws_sender)
         .then(
-            |headers: HeaderMap,
-             bytes: bytes::Bytes,
-             tx: mpsc::Sender<websocket_utils::TwitchCommand>,
-             ws_tx: broadcast::Sender<String>| async move {
-                use websocket_utils::TwitchCommand;
-
-                let body_str = String::from_utf8(bytes.clone().into()).unwrap();
-
-                let verification = verify_twitch_message(&headers, &body_str);
-                if !verification {
-                    eprintln!("[WEBHOOK] Message not from Twitch. Abort.");
-                    return warp::reply::with_status(
-                        "BAD_REQUEST".to_string(),
-                        StatusCode::BAD_REQUEST,
-                    );
-                }
-
-                println!("[WEBHOOK] Twitch message verified");
-
-                let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
-                let twitch_message_type = parse_header(twitch_message_type);
-
-                if twitch_message_type == NOTIFICATION_TYPE {
-                    // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
-                    let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
-                    let twitch_command = handle_webhook_message(message);
-
-                    match twitch_command {
-                        TwitchCommand::Ded => {
-                            websocket_utils::broadcast_message(&ws_tx, "Death".to_string());
-                        }
-                        TwitchCommand::FourTwenty => {
-                            websocket_utils::broadcast_message(&ws_tx, "420".to_string());
-                        }
-                        TwitchCommand::Nice => {
-                            websocket_utils::broadcast_message(&ws_tx, "Nice".to_string());
-                        }
-                        TwitchCommand::First(ref username) => {
-                            let res = std::fs::write("first.txt", format!("First: {}", username));
-                            match res {
-                                Ok(()) => println!("Writing `first` succeeded"),
-                                Err(e) => eprintln!("Writing `first` failed: {:?}", e),
-                            }
-                        }
-                        TwitchCommand::StreamOnline => {
-                            let res = std::fs::write("first.txt", "First:");
-                            match res {
-                                Ok(()) => println!("Resetting `first` succeeded"),
-                                Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
-                            }
-
-                            let token = std::env::var("TWITCH_APP_ACCESS_TOKEN").unwrap();
-                            let client_id = std::env::var("TWITCH_CLIENT_ID").unwrap();
-                            let user_id = std::env::var("TWITCH_JOXTACY_USER_ID")
-                                .unwrap()
-                                .parse()
-                                .unwrap();
-
-                            if let Ok(stream_info) =
-                                twitch_utils::get_stream_info(token, client_id, user_id).await
-                            {
-                                let token = std::env::var("DISCORD_BOT_TOKEN").unwrap();
-                                let channel_id = std::env::var("DISCORD_JOXTACY_IS_LIVE_CHANNELID")
-                                    .unwrap()
-                                    .parse()
-                                    .unwrap();
-
-                                let message = if !stream_info.data.is_empty() {
-                                    let stream_info = stream_info.data.first().unwrap();
-                                    string_utils::create_stream_online_message(
-                                        &stream_info.game_name,
-                                        &stream_info.title,
-                                    )
-                                } else {
-                                    string_utils::create_stream_online_message(
-                                        "something went wrong",
-                                        "something went wrong",
-                                    )
-                                };
-                                let _res = DiscordBuilder::new(&token)
-                                    .build()
-                                    .create_message(channel_id, &message)
-                                    .await;
-                            }
-                        }
-                        TwitchCommand::EmoteOnly => {
-                            let res = tx
-                                .send(TwitchCommand::Privmsg {
-                                    message: "/emoteonly".to_string(),
-                                })
-                                .await;
-
-                            if res.is_ok() {
-                                let tx1 = tx.clone();
-                                tokio::spawn(async move {
-                                    tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-                                    let _res = tx1
-                                        .send(TwitchCommand::Privmsg {
-                                            message: "/emoteonlyoff".to_string(),
-                                        })
-                                        .await;
-                                });
-                            }
-                        }
-                        ref unsupported_message => {
-                            eprintln!("[WEBHOOK] Unsupported Message: {:?}", unsupported_message);
-                        }
-                    }
-
-                    let res = tx.send(twitch_command).await;
-                    if let Err(e) = res {
-                        eprintln!(
-                            "[WEBHOOK] Could not send message to our MPSC channel: {:?}",
-                            e
-                        );
-                    }
-
-                    return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
-                } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
-                    // This is when subscribing to a webhook
-                    let message = serde_json::from_str::<VerificationChallenge>(&body_str).unwrap();
-                    return warp::reply::with_status(message.challenge, StatusCode::OK);
-                } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
-                    // This is when webhook subscription was revoked
-                    let message = serde_json::from_str::<RevokedSubscription>(&body_str).unwrap();
-                    println!(
-                        "[WEBHOOK] ERROR: Webhook subscription revoked. Reason: {}",
-                        message.subscription.status
-                    );
-                    return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
-                }
-
-                let body = String::from_utf8(bytes.to_vec()).unwrap();
-                println!("[WEBHOOK] Received POST request: {:?}", body);
-                warp::reply::with_status(body, StatusCode::OK)
+            move |headers: HeaderMap,
+                  bytes: bytes::Bytes,
+                  tx: mpsc::Sender<websocket_utils::TwitchCommand>,
+                  ws_tx: broadcast::Sender<String>| {
+                webhook_callback(headers, bytes, tx, ws_tx)
             },
         );
 
     let get_routes = warp::get().and(root.or(websocket));
     let routes = get_routes.or(post_routes);
     warp::serve(routes).run(([127, 0, 0, 1], port)).await;
+}
+
+async fn webhook_callback(
+    headers: HeaderMap,
+    bytes: bytes::Bytes,
+    tx: mpsc::Sender<websocket_utils::TwitchCommand>,
+    ws_tx: broadcast::Sender<String>,
+) -> warp::reply::WithStatus<String> {
+    use websocket_utils::TwitchCommand;
+
+    let body_str = String::from_utf8(bytes.clone().into()).unwrap();
+
+    let verification = verify_twitch_message(&headers, &body_str);
+    if !verification {
+        eprintln!("[WEBHOOK] Message not from Twitch. Abort.");
+        return warp::reply::with_status("BAD_REQUEST".to_string(), StatusCode::BAD_REQUEST);
+    }
+
+    println!("[WEBHOOK] Twitch message verified");
+
+    let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
+    let twitch_message_type = parse_header(twitch_message_type);
+
+    if twitch_message_type == NOTIFICATION_TYPE {
+        // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
+        let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
+        let twitch_command = handle_webhook_message(message);
+
+        match twitch_command {
+            TwitchCommand::Ded => {
+                websocket_utils::broadcast_message(&ws_tx, "Death".to_string());
+            }
+            TwitchCommand::FourTwenty => {
+                websocket_utils::broadcast_message(&ws_tx, "420".to_string());
+            }
+            TwitchCommand::Nice => {
+                websocket_utils::broadcast_message(&ws_tx, "Nice".to_string());
+            }
+            TwitchCommand::First(ref username) => {
+                let res = std::fs::write("first.txt", format!("First: {}", username));
+                match res {
+                    Ok(()) => println!("Writing `first` succeeded"),
+                    Err(e) => eprintln!("Writing `first` failed: {:?}", e),
+                }
+            }
+            TwitchCommand::StreamOnline => {
+                let res = std::fs::write("first.txt", "First:");
+                match res {
+                    Ok(()) => println!("Resetting `first` succeeded"),
+                    Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
+                }
+
+                let token = std::env::var("TWITCH_APP_ACCESS_TOKEN").unwrap();
+                let client_id = std::env::var("TWITCH_CLIENT_ID").unwrap();
+                let user_id = std::env::var("TWITCH_JOXTACY_USER_ID")
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+
+                if let Ok(stream_info) =
+                    twitch_utils::get_stream_info(token, client_id, user_id).await
+                {
+                    let token = std::env::var("DISCORD_BOT_TOKEN").unwrap();
+                    // let channel_id = std::env::var("DISCORD_TESTING_JOXTABOT_CHANNELID")
+                    let channel_id = std::env::var("DISCORD_JOXTACY_IS_LIVE_CHANNELID")
+                        .unwrap()
+                        .parse()
+                        .unwrap();
+
+                    let message = if !stream_info.data.is_empty() {
+                        let stream_info = stream_info.data.first().unwrap();
+                        string_utils::create_stream_online_message(
+                            &stream_info.game_name,
+                            &stream_info.title,
+                        )
+                    } else {
+                        string_utils::create_stream_online_message(
+                            "something went wrong",
+                            "something went wrong",
+                        )
+                    };
+                    let _res = DiscordBuilder::new(&token)
+                        .build()
+                        .create_message(channel_id, &message)
+                        .await;
+                }
+            }
+            TwitchCommand::EmoteOnly => {
+                let res = tx
+                    .send(TwitchCommand::Privmsg {
+                        message: "/emoteonly".to_string(),
+                    })
+                    .await;
+
+                if res.is_ok() {
+                    let tx1 = tx.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+                        let _res = tx1
+                            .send(TwitchCommand::Privmsg {
+                                message: "/emoteonlyoff".to_string(),
+                            })
+                            .await;
+                    });
+                }
+            }
+            ref unsupported_message => {
+                eprintln!("[WEBHOOK] Unsupported Message: {:?}", unsupported_message);
+            }
+        }
+
+        let res = tx.send(twitch_command).await;
+        if let Err(e) = res {
+            eprintln!(
+                "[WEBHOOK] Could not send message to our MPSC channel: {:?}",
+                e
+            );
+        }
+
+        return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
+    } else if twitch_message_type == WEBHOOK_CALLBACK_VERIFICATION_TYPE {
+        // This is when subscribing to a webhook
+        let message = serde_json::from_str::<VerificationChallenge>(&body_str).unwrap();
+        return warp::reply::with_status(message.challenge, StatusCode::OK);
+    } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
+        // This is when webhook subscription was revoked
+        let message = serde_json::from_str::<RevokedSubscription>(&body_str).unwrap();
+        println!(
+            "[WEBHOOK] ERROR: Webhook subscription revoked. Reason: {}",
+            message.subscription.status
+        );
+        return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
+    }
+
+    let body = String::from_utf8(bytes.to_vec()).unwrap();
+    println!("[WEBHOOK] Received POST request: {:?}", body);
+    warp::reply::with_status(body, StatusCode::OK)
+}
+
+async fn client_connected(websocket: WebSocket, mut ws_client_rx: broadcast::Receiver<String>) {
+    println!("[WS SERVER] User connected");
+
+    let (mut tx, mut rx) = websocket.split();
+
+    // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
+    loop {
+        tokio::select! {
+            msg = rx.next() => {
+                match msg {
+                    Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                    None => {
+                        println!("[WS SERVER] User disconnected");
+                        break;
+                    }
+                }
+            },
+            msg = ws_client_rx.recv() => {
+                match msg {
+                    Ok(msg) => {
+                        println!("[WS SERVER] Received message from broadcast: {}", msg);
+                        let res = tx.send(warp::ws::Message::text(msg)).await;
+                        if let Err(e) = res {
+                            eprintln!(
+                                "[WS SERVER] Could not send message to client. Reason: {:?}",
+                                e
+                                );
+                            // If we end up here we exit out of the loop since the
+                            // client is no longer connected.
+                            break;
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
+                    }
+                }
+
+            },
+            else => {
+                println!("[WS SERVER] Else branch executed");
+            }
+        }
+    }
 }
 
 fn get_env_port() -> u16 {
