@@ -1,3 +1,5 @@
+use discord_utils::DiscordBuilder;
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
@@ -9,7 +11,9 @@ async fn main() {
         .unwrap();
     println!("token: {}", token);
     println!("channelid: {}", channel_id);
-    let res =
-        discord_utils::create_message(token.to_string(), channel_id, "testing".to_string()).await;
+    let res = DiscordBuilder::new(&token)
+        .build()
+        .create_message(channel_id, "testing")
+        .await;
     println!("How did it go? {:?}", res);
 }
