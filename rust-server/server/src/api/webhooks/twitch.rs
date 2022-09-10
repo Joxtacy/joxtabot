@@ -186,8 +186,8 @@ pub fn handle_webhook_message(message: TwitchMessage) -> TwitchCommand {
                 "-420" => TwitchCommand::FourTwenty,
                 "ded" => TwitchCommand::Ded,
                 "Nice" => TwitchCommand::Nice,
-                "+1 Pushup" => TwitchCommand::Pushup,
-                "+1 Situp" => TwitchCommand::Situp,
+                "+1 Pushup" => TwitchCommand::Pushup(1),
+                "+1 Situp" => TwitchCommand::Situp(1),
                 "Emote-only Chat" => TwitchCommand::EmoteOnly,
                 _ => {
                     println!("[TWITCH] Reward not supported: {}", reward_title);
