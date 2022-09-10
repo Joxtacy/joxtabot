@@ -1,6 +1,9 @@
 use futures_util::{SinkExt, StreamExt};
+use parking_lot::Mutex;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
+use uuid::Uuid;
 use warp::{
     http::{HeaderMap, StatusCode},
     Filter,
@@ -188,10 +191,24 @@ mod websocket_utils {
     }
 }
 
+#[derive(Debug, Clone)]
+struct WsClient {
+    #[allow(dead_code)]
+    id: Uuid,
+}
+
+impl WsClient {
+    fn new(id: Uuid) -> Self {
+        Self { id }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Init env variables
     let (token, port) = init_env();
+
+    let clients = Arc::new(Mutex::new(HashMap::<Uuid, WsClient>::new()));
 
     println!("Running on port {}", port);
 
@@ -273,11 +290,18 @@ async fn main() {
     // Create a new subscription on the sender for the broadcast channel.
     let with_receiver = warp::any().map(move || ws_client_tx1.subscribe());
 
+    let with_clients = warp::any().map(move || Arc::clone(&clients));
+
     // This is where our own client will connect
-    let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
-        |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>| {
+    let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).and(with_clients).map(
+        |ws: warp::ws::Ws, mut ws_client_rx: broadcast::Receiver<String>, clients: Arc<Mutex<HashMap<Uuid, WsClient>>>| {
             ws.on_upgrade(|websocket| async move {
-                println!("[WS SERVER] User connected");
+
+                let id = Uuid::new_v4();
+                let client = WsClient::new(id);
+                clients.lock().insert(id, client);
+
+                println!("[WS SERVER] User ({}) connected", &id);
 
                 let (mut tx, mut rx) = websocket.split();
 
@@ -286,9 +310,9 @@ async fn main() {
                     tokio::select! {
                         msg = rx.next() => {
                             match msg {
-                                Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                                Some(msg) => println!("[WS SERVER] ({}) Received message: {:?}", &id, msg),
                                 None => {
-                                    println!("[WS SERVER] User disconnected");
+                                    println!("[WS SERVER] User ({}) disconnected", &id);
                                     break;
                                 }
                             }
@@ -319,6 +343,8 @@ async fn main() {
                         }
                     }
                 }
+
+                clients.lock().remove(&id);
             })
         },
     );
