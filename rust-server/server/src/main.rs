@@ -1,3 +1,4 @@
+use discord_utils::DiscordBuilder;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
@@ -418,8 +419,10 @@ async fn main() {
                                         "something went wrong",
                                     )
                                 };
-                                let _res =
-                                    discord_utils::create_message(token, channel_id, message).await;
+                                let _res = DiscordBuilder::new(&token)
+                                    .build()
+                                    .create_message(channel_id, &message)
+                                    .await;
                             }
                         }
                         TwitchCommand::EmoteOnly => {
