@@ -222,10 +222,9 @@ async fn main() {
                     if let Ok(msg) = msg {
                         match msg {
                             Message::Text(text) => {
-                                let split = text.split("\r\n");
-                                let filtered = split
-                                    .filter(|s| !s.is_empty());
-                                for msg in filtered {
+                                let lines = text.lines();
+
+                                for msg in lines {
                                     println!("[WS CLIENT] Twitch Message: {}", msg);
 
                                     // Parse the Twitch Message
