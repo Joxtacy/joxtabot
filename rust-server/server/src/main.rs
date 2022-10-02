@@ -134,11 +134,8 @@ mod websocket_utils {
                     None => None,
                 };
 
-                match nick {
-                    Some(nick) => {
-                        println!("[WS CLIENT] {} joined #{}", nick, channel);
-                    }
-                    None => {}
+                if let Some(nick) = nick {
+                    println!("[WS CLIENT] {} joined #{}", nick, channel);
                 }
             }
             Command::PART(channel) => {
@@ -147,11 +144,8 @@ mod websocket_utils {
                     None => None,
                 };
 
-                match nick {
-                    Some(nick) => {
-                        println!("[WS CLIENT] {} left #{}", nick, channel);
-                    }
-                    None => {}
+                if let Some(nick) = nick {
+                    println!("[WS CLIENT] {} left #{}", nick, channel);
                 }
             }
             Command::PRIVMSG {
@@ -319,7 +313,7 @@ async fn webhook_callback(
 ) -> warp::reply::WithStatus<String> {
     use websocket_utils::TwitchCommand;
 
-    let body_str = String::from_utf8(bytes.clone().into()).unwrap();
+    let body_str = String::from_utf8(bytes.clone().into()).unwrap_or_else(|_| "".to_string());
 
     let verification = verify_twitch_message(&headers, &body_str);
     if !verification {
