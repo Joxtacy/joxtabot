@@ -1,3 +1,8 @@
+use std::{
+    collections::HashSet,
+    sync::{Arc, Mutex},
+};
+
 use discord_utils::DiscordBuilder;
 use futures_util::{SinkExt, StreamExt};
 use tokio::sync::{broadcast, mpsc};
@@ -186,6 +191,8 @@ mod websocket_utils {
 
 #[tokio::main]
 async fn main() {
+    let message_ids = Arc::new(Mutex::new(HashSet::<String>::new()));
+
     // Init env variables
     let (token, port) = init_env();
 
@@ -284,6 +291,8 @@ async fn main() {
     // Clone the sending part of the mpsc channel for the websocket client.
     let with_sender = warp::any().map(move || tx.clone());
 
+    let with_message_ids = warp::any().map(move || Arc::clone(&message_ids));
+
     // This is where Twitch will send their callbacks
     let post_routes = warp::post()
         .and(warp::path!("twitch" / "webhooks" / "callback"))
@@ -291,12 +300,14 @@ async fn main() {
         .and(warp::body::bytes())
         .and(with_sender)
         .and(with_ws_sender)
+        .and(with_message_ids)
         .then(
             move |headers: HeaderMap,
                   bytes: bytes::Bytes,
                   tx: mpsc::Sender<websocket_utils::TwitchCommand>,
-                  ws_tx: broadcast::Sender<String>| {
-                webhook_callback(headers, bytes, tx, ws_tx)
+                  ws_tx: broadcast::Sender<String>,
+                  message_ids: Arc<Mutex<HashSet<String>>>| {
+                webhook_callback(headers, bytes, tx, ws_tx, message_ids)
             },
         );
 
@@ -310,6 +321,7 @@ async fn webhook_callback(
     bytes: bytes::Bytes,
     tx: mpsc::Sender<websocket_utils::TwitchCommand>,
     ws_tx: broadcast::Sender<String>,
+    message_ids: Arc<Mutex<HashSet<String>>>,
 ) -> warp::reply::WithStatus<String> {
     use websocket_utils::TwitchCommand;
 
@@ -321,13 +333,57 @@ async fn webhook_callback(
         return warp::reply::with_status("BAD_REQUEST".to_string(), StatusCode::BAD_REQUEST);
     }
 
+    // Verify that the message from Twitch is not too old
+    {
+        let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
+        let twitch_message_timestamp = parse_header(twitch_message_timestamp);
+
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&twitch_message_timestamp);
+
+        if timestamp.is_err() {
+            return warp::reply::with_status(
+                "Invalid Timestamp".to_string(),
+                StatusCode::BAD_REQUEST,
+            );
+        }
+
+        let timestamp = timestamp.expect("This is now `Ok` type");
+
+        let now = chrono::Utc::now();
+        let old_message_duration = chrono::Duration::minutes(10);
+
+        if timestamp + old_message_duration < now {
+            eprintln!("[WEBHOOK] Message from Twitch is too old. Rejecting.");
+            return warp::reply::with_status("Message Too Old".to_string(), StatusCode::OK);
+        }
+    }
+
+    // Verify that we haven't already received this message
+    {
+        // Do this in a separate block to make sure the reference to the lock is
+        // dropped before any new call to `await`
+
+        let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
+        let twitch_message_id = parse_header(twitch_message_id);
+
+        let mut ids = message_ids.lock().expect("Lock could not be aquired!");
+
+        if ids.contains(&twitch_message_id) {
+            return warp::reply::with_status(
+                "Already received message".to_string(),
+                StatusCode::OK,
+            );
+        } else {
+            ids.insert(twitch_message_id);
+        }
+    }
+
     println!("[WEBHOOK] Twitch message verified");
 
     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
     let twitch_message_type = parse_header(twitch_message_type);
 
     if twitch_message_type == NOTIFICATION_TYPE {
-        // TODO: Check if message is duplicate. https://dev.twitch.tv/docs/eventsub/handling-webhook-events#processing-an-event
         let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
         let twitch_command = handle_webhook_message(message);
 

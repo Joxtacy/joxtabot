@@ -24,5 +24,6 @@ warp = "0.3.2"
 dotenv = "0.15.0"
 serde_derive = "1.0.143"
 bytes = "1.2.1"
+chrono = "0.4.22"
 
 [features]
