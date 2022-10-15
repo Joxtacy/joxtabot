@@ -153,6 +153,39 @@ mod twitch {
         }
     }
 
+    pub enum TwitchTimestampError {
+        /// Timestamp is too old.
+        TooOld,
+        /// Timestamp could not be parsed as it was not a valid timestamp.
+        NotAValidTimestamp,
+    }
+
+    /// Verifies that the timestamp header value is not too old.
+    ///
+    /// Current limit is 10 minutes.
+    pub fn verify_twitch_message_age(
+        timestamp_header: Option<&HeaderValue>,
+    ) -> Result<(), TwitchTimestampError> {
+        let twitch_message_timestamp = parse_twitch_request_header(timestamp_header);
+
+        let timestamp = chrono::DateTime::parse_from_rfc3339(&twitch_message_timestamp);
+
+        if timestamp.is_err() {
+            return Err(TwitchTimestampError::NotAValidTimestamp);
+        }
+
+        let timestamp = timestamp.expect("This is now `Ok` type");
+
+        let now = chrono::Utc::now();
+        let old_message_duration = chrono::Duration::minutes(10);
+
+        if timestamp + old_message_duration < now {
+            return Err(TwitchTimestampError::TooOld);
+        }
+
+        Ok(())
+    }
+
     pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
         let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
         let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
@@ -508,26 +541,25 @@ async fn webhook_callback(
     // Verify that the message from Twitch is not too old
     {
         let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
-        let twitch_message_timestamp = parse_twitch_request_header(twitch_message_timestamp);
 
-        let timestamp = chrono::DateTime::parse_from_rfc3339(&twitch_message_timestamp);
+        let result = twitch::verify_twitch_message_age(twitch_message_timestamp);
 
-        if timestamp.is_err() {
-            return warp::reply::with_status(
-                "Invalid Timestamp".to_string(),
-                StatusCode::BAD_REQUEST,
-            );
-        }
-
-        let timestamp = timestamp.expect("This is now `Ok` type");
-
-        let now = chrono::Utc::now();
-        let old_message_duration = chrono::Duration::minutes(10);
-
-        if timestamp + old_message_duration < now {
-            eprintln!("[WEBHOOK] Message from Twitch is too old. Rejecting.");
-            return warp::reply::with_status("Message Too Old".to_string(), StatusCode::OK);
-        }
+        if result.is_err() {
+            let error_message = result.unwrap_err();
+            match error_message {
+                twitch::TwitchTimestampError::TooOld => {
+                    eprintln!("[WEBHOOK] Message from Twitch is too old. Rejecting.");
+                    return warp::reply::with_status("Message Too Old".to_string(), StatusCode::OK);
+                }
+                twitch::TwitchTimestampError::NotAValidTimestamp => {
+                    eprintln!("[WEBHOOK] Could not parse timestamp in Twitch-Eventsub-Message-Timestamp header");
+                    return warp::reply::with_status(
+                        "Invalid Timestamp".to_string(),
+                        StatusCode::BAD_REQUEST,
+                    );
+                }
+            };
+        };
     }
 
     // Verify that we haven't already received this message
