@@ -219,7 +219,7 @@ mod twitch {
         }
     }
 
-    pub fn parse_header(header: Option<&HeaderValue>) -> String {
+    pub fn parse_twitch_request_header(header: Option<&HeaderValue>) -> String {
         if let Some(header) = header {
             header.to_str().unwrap_or("").to_owned()
         } else {
@@ -232,9 +232,9 @@ mod twitch {
         let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
         let twitch_message_signature = headers.get("Twitch-Eventsub-Message-Signature");
 
-        let twitch_message_id = parse_header(twitch_message_id);
-        let twitch_message_timestamp = parse_header(twitch_message_timestamp);
-        let twitch_message_signature = parse_header(twitch_message_signature);
+        let twitch_message_id = parse_twitch_request_header(twitch_message_id);
+        let twitch_message_timestamp = parse_twitch_request_header(twitch_message_timestamp);
+        let twitch_message_signature = parse_twitch_request_header(twitch_message_signature);
 
         let secret = "bajsballetelefonlur";
         let hmac_message = format!("{}{}{}", twitch_message_id, twitch_message_timestamp, body);
@@ -263,9 +263,9 @@ mod twitch {
 }
 
 use twitch::{
-    handle_webhook_message, parse_header, verify_twitch_message, RevokedSubscription,
-    TwitchMessage, VerificationChallenge, NOTIFICATION_TYPE, SUBSCRIPTION_REVOKED_TYPE,
-    WEBHOOK_CALLBACK_VERIFICATION_TYPE,
+    handle_webhook_message, parse_twitch_request_header, verify_twitch_message,
+    RevokedSubscription, TwitchMessage, VerificationChallenge, NOTIFICATION_TYPE,
+    SUBSCRIPTION_REVOKED_TYPE, WEBHOOK_CALLBACK_VERIFICATION_TYPE,
 };
 
 const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
@@ -582,7 +582,7 @@ async fn webhook_callback(
     // Verify that the message from Twitch is not too old
     {
         let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
-        let twitch_message_timestamp = parse_header(twitch_message_timestamp);
+        let twitch_message_timestamp = parse_twitch_request_header(twitch_message_timestamp);
 
         let timestamp = chrono::DateTime::parse_from_rfc3339(&twitch_message_timestamp);
 
@@ -610,7 +610,7 @@ async fn webhook_callback(
         // dropped before any new call to `await`
 
         let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
-        let twitch_message_id = parse_header(twitch_message_id);
+        let twitch_message_id = parse_twitch_request_header(twitch_message_id);
 
         let mut ids = message_ids.lock().expect("Lock could not be aquired!");
 
@@ -627,7 +627,7 @@ async fn webhook_callback(
     println!("[WEBHOOK] Twitch message verified");
 
     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
-    let twitch_message_type = parse_header(twitch_message_type);
+    let twitch_message_type = parse_twitch_request_header(twitch_message_type);
 
     if twitch_message_type == NOTIFICATION_TYPE {
         let message = serde_json::from_str::<TwitchMessage>(&body_str).unwrap();
