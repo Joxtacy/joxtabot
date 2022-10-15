@@ -45,13 +45,12 @@ fn init_env() -> (String, u16) {
 
 mod string_utils;
 
-mod websocket_utils {
+mod websocket_client_utils {
     use crate::string_utils;
-    use futures_util::{SinkExt, StreamExt};
-    use tokio::{net::TcpStream, sync::broadcast};
+    use futures_util::SinkExt;
+    use tokio::net::TcpStream;
     use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
     use twitch_irc_parser::{Command, ParsedTwitchMessage, Tag};
-    use warp::ws::WebSocket;
 
     type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -92,63 +91,6 @@ mod websocket_utils {
             .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
             .await
             .unwrap();
-    }
-
-    pub async fn client_connected(
-        websocket: WebSocket,
-        mut ws_client_rx: broadcast::Receiver<String>,
-    ) {
-        println!("[WS SERVER] User connected");
-
-        let (mut tx, mut rx) = websocket.split();
-
-        // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
-        loop {
-            tokio::select! {
-                msg = rx.next() => {
-                    match msg {
-                        Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
-                        None => {
-                            println!("[WS SERVER] User disconnected");
-                            break;
-                        }
-                    }
-                },
-                msg = ws_client_rx.recv() => {
-                    match msg {
-                        Ok(msg) => {
-                            println!("[WS SERVER] Received message from broadcast: {}", msg);
-                            let res = tx.send(warp::ws::Message::text(msg)).await;
-                            if let Err(e) = res {
-                                eprintln!(
-                                    "[WS SERVER] Could not send message to client. Reason: {:?}",
-                                    e
-                                    );
-                                // If we end up here we exit out of the loop since the
-                                // client is no longer connected.
-                                break;
-                            }
-                        },
-                        Err(e) => {
-                            eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
-                        }
-                    }
-
-                },
-                else => {
-                    println!("[WS SERVER] Else branch executed");
-                }
-            }
-        }
-    }
-
-    pub fn broadcast_message<T>(tx: &broadcast::Sender<T>, msg: T)
-    where
-        T: std::fmt::Debug,
-    {
-        if let Err(e) = tx.send(msg) {
-            eprintln!("Could not send message to socket server: {:?}", e);
-        }
     }
 
     /// Handle the parsed Twitch IRC message
@@ -218,6 +160,73 @@ mod websocket_utils {
     }
 }
 
+mod websocket_server_utils {
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::sync::broadcast;
+    use warp::ws::WebSocket;
+
+    pub async fn client_connected(
+        websocket: WebSocket,
+        mut ws_client_rx: broadcast::Receiver<String>,
+    ) {
+        println!("[WS SERVER] User connected");
+
+        let (mut tx, mut rx) = websocket.split();
+
+        // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
+        loop {
+            tokio::select! {
+                msg = rx.next() => {
+                    match msg {
+                        Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                        None => {
+                            println!("[WS SERVER] User disconnected");
+                            break;
+                        }
+                    }
+                },
+                msg = ws_client_rx.recv() => {
+                    match msg {
+                        Ok(msg) => {
+                            println!("[WS SERVER] Received message from broadcast: {}", msg);
+                            let res = tx.send(warp::ws::Message::text(msg)).await;
+                            if let Err(e) = res {
+                                eprintln!(
+                                    "[WS SERVER] Could not send message to client. Reason: {:?}",
+                                    e
+                                    );
+                                // If we end up here we exit out of the loop since the
+                                // client is no longer connected.
+                                break;
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
+                        }
+                    }
+
+                },
+                else => {
+                    println!("[WS SERVER] Else branch executed");
+                }
+            }
+        }
+    }
+}
+
+mod websocket_utils {
+    use tokio::sync::broadcast;
+
+    pub fn broadcast_message<T>(tx: &broadcast::Sender<T>, msg: T)
+    where
+        T: std::fmt::Debug,
+    {
+        if let Err(e) = tx.send(msg) {
+            eprintln!("Could not send message to socket server: {:?}", e);
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     let message_ids = Arc::new(Mutex::new(HashSet::<String>::new()));
@@ -246,7 +255,7 @@ async fn main() {
         let (mut ws_stream, _) = res.unwrap();
 
         // Init the WebSocket connection to our Twitch channel.
-        websocket_utils::init_ws(&mut ws_stream, &token).await;
+        websocket_client_utils::init_ws(&mut ws_stream, &token).await;
 
         loop {
             tokio::select! {
@@ -263,7 +272,7 @@ async fn main() {
                                     let parsed_message = parse_message(msg);
 
                                     // Match on the different Twitch Commands
-                                    websocket_utils::handle_message(&mut ws_stream, parsed_message).await;
+                                    websocket_client_utils::handle_message(&mut ws_stream, parsed_message).await;
                                 }
                             },
                             Message::Binary(bin) => {
@@ -280,7 +289,7 @@ async fn main() {
                 },
                 Some(msg) = rx.recv() => {
                     match msg {
-                        websocket_utils::TwitchCommand::Privmsg { message } => {
+                        websocket_client_utils::TwitchCommand::Privmsg { message } => {
                             let priv_msg = string_utils::create_privmsg("joxtacy", &message);
                             let res = ws_stream.send(priv_msg.into()).await;
                             if let Err(e) = res {
@@ -308,7 +317,7 @@ async fn main() {
     let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
         |ws: warp::ws::Ws, ws_client_rx: broadcast::Receiver<String>| {
             ws.on_upgrade(move |websocket| {
-                websocket_utils::client_connected(websocket, ws_client_rx)
+                websocket_server_utils::client_connected(websocket, ws_client_rx)
             })
         },
     );
@@ -335,7 +344,7 @@ async fn main() {
         .then(
             move |headers: HeaderMap,
                   bytes: bytes::Bytes,
-                  tx: mpsc::Sender<websocket_utils::TwitchCommand>,
+                  tx: mpsc::Sender<websocket_client_utils::TwitchCommand>,
                   ws_tx: broadcast::Sender<String>,
                   message_ids: Arc<Mutex<HashSet<String>>>| {
                 webhook_callback(headers, bytes, tx, ws_tx, message_ids)
@@ -350,11 +359,11 @@ async fn main() {
 async fn webhook_callback(
     headers: HeaderMap,
     bytes: bytes::Bytes,
-    tx: mpsc::Sender<websocket_utils::TwitchCommand>,
+    tx: mpsc::Sender<websocket_client_utils::TwitchCommand>,
     ws_tx: broadcast::Sender<String>,
     message_ids: Arc<Mutex<HashSet<String>>>,
 ) -> warp::reply::WithStatus<String> {
-    use websocket_utils::TwitchCommand;
+    use websocket_client_utils::TwitchCommand;
 
     let body_str = String::from_utf8(bytes.clone().into()).unwrap_or_else(|_| "".to_string());
 
