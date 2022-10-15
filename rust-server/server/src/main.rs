@@ -9,7 +9,6 @@ use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use warp::{
     http::{HeaderMap, StatusCode},
-    ws::WebSocket,
     Filter,
 };
 
@@ -272,10 +271,11 @@ mod string_utils {
 
 mod websocket_utils {
     use crate::string_utils;
-    use futures_util::SinkExt;
+    use futures_util::{SinkExt, StreamExt};
     use tokio::{net::TcpStream, sync::broadcast};
     use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
     use twitch_irc_parser::{Command, ParsedTwitchMessage, Tag};
+    use warp::ws::WebSocket;
 
     type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -316,6 +316,54 @@ mod websocket_utils {
             .send("CAP REQ :twitch.tv/tags twitch.tv/commands".into())
             .await
             .unwrap();
+    }
+
+    pub async fn client_connected(
+        websocket: WebSocket,
+        mut ws_client_rx: broadcast::Receiver<String>,
+    ) {
+        println!("[WS SERVER] User connected");
+
+        let (mut tx, mut rx) = websocket.split();
+
+        // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
+        loop {
+            tokio::select! {
+                msg = rx.next() => {
+                    match msg {
+                        Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                        None => {
+                            println!("[WS SERVER] User disconnected");
+                            break;
+                        }
+                    }
+                },
+                msg = ws_client_rx.recv() => {
+                    match msg {
+                        Ok(msg) => {
+                            println!("[WS SERVER] Received message from broadcast: {}", msg);
+                            let res = tx.send(warp::ws::Message::text(msg)).await;
+                            if let Err(e) = res {
+                                eprintln!(
+                                    "[WS SERVER] Could not send message to client. Reason: {:?}",
+                                    e
+                                    );
+                                // If we end up here we exit out of the loop since the
+                                // client is no longer connected.
+                                break;
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
+                        }
+                    }
+
+                },
+                else => {
+                    println!("[WS SERVER] Else branch executed");
+                }
+            }
+        }
     }
 
     pub fn broadcast_message<T>(tx: &broadcast::Sender<T>, msg: T)
@@ -483,7 +531,9 @@ async fn main() {
     // This is where our own client will connect
     let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
         |ws: warp::ws::Ws, ws_client_rx: broadcast::Receiver<String>| {
-            ws.on_upgrade(move |websocket| client_connected(websocket, ws_client_rx))
+            ws.on_upgrade(move |websocket| {
+                websocket_utils::client_connected(websocket, ws_client_rx)
+            })
         },
     );
 
@@ -700,51 +750,6 @@ async fn webhook_callback(
     let body = String::from_utf8(bytes.to_vec()).unwrap();
     println!("[WEBHOOK] Received POST request: {:?}", body);
     warp::reply::with_status(body, StatusCode::OK)
-}
-
-async fn client_connected(websocket: WebSocket, mut ws_client_rx: broadcast::Receiver<String>) {
-    println!("[WS SERVER] User connected");
-
-    let (mut tx, mut rx) = websocket.split();
-
-    // Some tips might be found here: https://tms-dev-blog.com/build-basic-rust-websocket-server/
-    loop {
-        tokio::select! {
-            msg = rx.next() => {
-                match msg {
-                    Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
-                    None => {
-                        println!("[WS SERVER] User disconnected");
-                        break;
-                    }
-                }
-            },
-            msg = ws_client_rx.recv() => {
-                match msg {
-                    Ok(msg) => {
-                        println!("[WS SERVER] Received message from broadcast: {}", msg);
-                        let res = tx.send(warp::ws::Message::text(msg)).await;
-                        if let Err(e) = res {
-                            eprintln!(
-                                "[WS SERVER] Could not send message to client. Reason: {:?}",
-                                e
-                                );
-                            // If we end up here we exit out of the loop since the
-                            // client is no longer connected.
-                            break;
-                        }
-                    },
-                    Err(e) => {
-                        eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
-                    }
-                }
-
-            },
-            else => {
-                println!("[WS SERVER] Else branch executed");
-            }
-        }
-    }
 }
 
 fn get_env_port() -> u16 {
