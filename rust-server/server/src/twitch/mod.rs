@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use warp::http::{HeaderMap, HeaderValue};
 
-use crate::websocket_client_utils::TwitchCommand;
+use crate::websocket::client_utils::TwitchCommand;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VerificationChallenge {
