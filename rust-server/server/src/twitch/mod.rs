@@ -135,6 +135,7 @@ pub fn parse_twitch_request_header(header: Option<&HeaderValue>) -> String {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum TwitchTimestampError {
     /// Timestamp is too old.
     TooOld,
@@ -200,4 +201,97 @@ pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
     mac.update(hmac_message.as_bytes());
 
     mac.verify_slice(&decoded).is_ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    use warp::http::{HeaderMap, HeaderValue};
+
+    use super::{
+        parse_twitch_request_header, verify_twitch_message, verify_twitch_message_age,
+        TwitchTimestampError,
+    };
+
+    #[test]
+    fn it_should_verify_twitch_message() {
+        let now = chrono::Utc::now();
+
+        let timestamp = now.to_rfc3339();
+        let message_id = "message-id";
+        let body = r#"{"subscription":{"id":"cfe495bf-a78e-6c47-2e66-f3ff62398c31","status":"enabled","type":"channel.channel_points_custom_reward_redemption.add","version":"1","condition":{"broadcaster_user_id":"98048478"},"transport":{"method":"webhook","callback":"null"},"created_at":"2022-10-22T02:52:54.58609Z","cost":0},"event":{"id":"cfe495bf-a78e-6c47-2e66-f3ff62398c31","broadcaster_user_id":"98048478","broadcaster_user_login":"testBroadcaster","broadcaster_user_name":"testBroadcaster","user_id":"73700748","user_login":"testFromUser","user_name":"testFromUser","user_input":"Test Input From CLI","status":"unfulfilled","reward":{"id":"923154d2-65f1-cc5d-7e5f-d131036daaa7","title":"Test Reward from CLI","cost":150,"prompt":"Redeem Your Test Reward from CLI"},"redeemed_at":"2022-10-22T02:52:54.58609Z"}}"#;
+
+        let timestamp_header = HeaderValue::from_str(&timestamp).unwrap();
+        let message_id_header = HeaderValue::from_str("message-id").unwrap();
+
+        let hmac_message = format!("{}{}{}", message_id, &timestamp, body);
+
+        type HmacSha256 = Hmac<Sha256>;
+        let mut mac = HmacSha256::new_from_slice("bajsballetelefonlur".as_bytes()).unwrap();
+        mac.update(hmac_message.as_bytes());
+
+        let bytes = mac.finalize().into_bytes();
+
+        let signature = hex::encode(bytes);
+        let signature = format!("sha256={}", signature);
+
+        let signature_header = HeaderValue::from_str(&signature).unwrap();
+
+        let mut headers = HeaderMap::new();
+        headers.insert("Twitch-Eventsub-Message-Id", message_id_header);
+        headers.insert("Twitch-Eventsub-Message-Timestamp", timestamp_header);
+        headers.insert("Twitch-Eventsub-Message-Signature", signature_header);
+
+        let result = verify_twitch_message(&headers, body);
+
+        assert!(result);
+    }
+
+    #[test]
+    fn it_should_verify_the_age_of_the_message() {
+        let now = chrono::Utc::now();
+        let header_value = HeaderValue::from_str(&now.to_rfc3339()).unwrap();
+        let res = verify_twitch_message_age(Some(&header_value));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn it_should_verify_that_the_message_is_too_old() {
+        let now = chrono::Utc::now();
+        let duration = chrono::Duration::minutes(20);
+        let new_time = now - duration;
+        let header_value = HeaderValue::from_str(&new_time.to_rfc3339()).unwrap();
+        let res = verify_twitch_message_age(Some(&header_value));
+
+        assert!(res.is_err());
+
+        assert_eq!(res.unwrap_err(), TwitchTimestampError::TooOld);
+    }
+
+    #[test]
+    fn it_should_verify_that_the_timestamp_is_not_valid() {
+        let header_value = HeaderValue::from_str("Herp derp").unwrap();
+        let res = verify_twitch_message_age(Some(&header_value));
+
+        assert!(res.is_err());
+
+        assert_eq!(res.unwrap_err(), TwitchTimestampError::NotAValidTimestamp);
+    }
+    #[test]
+    fn it_should_parse_twitch_request_header_to_empty_string() {
+        let result = parse_twitch_request_header(None);
+
+        assert_eq!(result, "".to_string());
+    }
+
+    #[test]
+    fn it_should_parse_twitch_request_header_to_string() {
+        let header_value = HeaderValue::from_str("This is a valid header").unwrap();
+
+        let result = parse_twitch_request_header(Some(&header_value));
+
+        assert_eq!(result, "This is a valid header".to_string());
+    }
 }
