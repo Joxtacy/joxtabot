@@ -206,6 +206,7 @@ pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use hmac::{Hmac, Mac};
+    use pretty_assertions::assert_eq;
     use sha2::Sha256;
     use warp::http::{HeaderMap, HeaderValue};
 

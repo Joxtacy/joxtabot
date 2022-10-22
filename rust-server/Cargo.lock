@@ -1411,6 +1411,7 @@ dependencies = [
  "hex",
  "hmac",
  "log",
+ "pretty_assertions",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1785,6 +1786,7 @@ name = "twitch-utils"
 version = "0.1.0"
 dependencies = [
  "dotenv",
+ "pretty_assertions",
  "reqwest",
  "serde",
  "tokio",

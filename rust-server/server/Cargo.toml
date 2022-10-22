@@ -27,4 +27,7 @@ serde_derive = "1.0.143"
 bytes = "1.2.1"
 chrono = "0.4.22"
 
+[dev-dependencies]
+pretty_assertions.workspace = true
+
 [features]

@@ -20,6 +20,8 @@ pub fn create_privmsg(channel: &str, message: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::{create_privmsg, create_stream_online_message};
 
     #[test]

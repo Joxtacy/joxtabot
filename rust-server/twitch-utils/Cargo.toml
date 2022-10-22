@@ -11,3 +11,6 @@ dotenv.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 tokio.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
