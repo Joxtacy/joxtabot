@@ -6,7 +6,7 @@ use twitch_irc_parser::{Command, ParsedTwitchMessage, Tag};
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TwitchCommand {
     Ded,
     EmoteOnly,

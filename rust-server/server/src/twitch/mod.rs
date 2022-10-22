@@ -210,9 +210,11 @@ mod tests {
     use sha2::Sha256;
     use warp::http::{HeaderMap, HeaderValue};
 
+    use crate::websocket::client_utils::TwitchCommand;
+
     use super::{
-        parse_twitch_request_header, verify_twitch_message, verify_twitch_message_age,
-        TwitchTimestampError,
+        handle_webhook_message, parse_twitch_request_header, verify_twitch_message,
+        verify_twitch_message_age, TwitchMessage, TwitchTimestampError,
     };
 
     #[test]
@@ -294,5 +296,129 @@ mod tests {
         let result = parse_twitch_request_header(Some(&header_value));
 
         assert_eq!(result, "This is a valid header".to_string());
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_stream_online() {
+        let message = r#"{"subscription":{"id":"fcc64b55-a812-41bf-f36e-7b3387fc79d8","status":"enabled","type":"stream.online","version":"1","condition":{"broadcaster_user_id":"54605357"},"transport":{"method":"webhook","callback":"null"},"created_at":"2022-10-22T09:13:39.741291Z","cost":0},"event":{"id":"54757347","broadcaster_user_id":"54605357","broadcaster_user_login":"testBroadcaster","broadcaster_user_name":"testBroadcaster","type":"live","started_at":"2022-10-22T09:13:39.741308Z"}}"#;
+
+        let message = serde_json::from_str::<TwitchMessage>(message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::StreamOnline);
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_first() {
+        let message = generate_twitch_command("Le_Test_User", "First");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::First("Le_Test_User".to_string()));
+    }
+
+    fn generate_twitch_command(user_name: &str, reward_title: &str) -> String {
+        let x = r#"{"subscription":{"id":"1d4a106b-c0db-2b19-a24d-f69020f7e9df","status":"enabled","type":"channel.channel_points_custom_reward_redemption.add","version":"1","condition":{"broadcaster_user_id":"10491327"},"transport":{"method":"webhook","callback":"null"},"created_at":"2022-10-22T09:29:10.228165Z","cost":0},"event":{"id":"1d4a106b-c0db-2b19-a24d-f69020f7e9df","broadcaster_user_id":"10491327","broadcaster_user_login":"testBroadcaster","broadcaster_user_name":"testBroadcaster","user_id":"41417109","user_login":"testFromUser","user_name":""#;
+        let y = r#"","user_input":"Test Input From CLI","status":"unfulfilled","reward":{"id":"eceb6773-b5a3-886b-3e6e-a130b6b2c3ae","title":""#;
+        let z = r#"","cost":150,"prompt":"Redeem Your Test Reward from CLI"},"redeemed_at":"2022-10-22T09:29:10.228165Z"}}"#;
+
+        format!("{}{}{}{}{}", x, user_name, y, reward_title, z)
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_timeout() {
+        let message = generate_twitch_command("Le_Test_User", "Timeout");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(
+            result,
+            TwitchCommand::Timeout {
+                timeout: 120,
+                user: "Le_Test_User".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_420() {
+        let message = generate_twitch_command("Le_Test_User", "-420");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::FourTwenty);
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_ded() {
+        let message = generate_twitch_command("Le_Test_User", "ded");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::Ded);
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_nice() {
+        let message = generate_twitch_command("Le_Test_User", "Nice");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::Nice);
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_pushup() {
+        let message = generate_twitch_command("Le_Test_User", "+1 Pushup");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::Pushup(1));
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_situp() {
+        let message = generate_twitch_command("Le_Test_User", "+1 Situp");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::Situp(1));
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_emote_only() {
+        let message = generate_twitch_command("Le_Test_User", "Emote-only Chat");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::EmoteOnly);
+    }
+
+    #[test]
+    fn it_should_return_correct_message_on_reward_redemption_unsupported() {
+        let message = generate_twitch_command("Le_Test_User", "This is not a supported title");
+
+        let message = serde_json::from_str::<TwitchMessage>(&message).unwrap();
+
+        let result = handle_webhook_message(message);
+
+        assert_eq!(result, TwitchCommand::UnsupportedMessage);
     }
 }
