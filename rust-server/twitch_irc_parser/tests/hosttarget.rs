@@ -1,3 +1,4 @@
+use pretty_assertions::assert_eq;
 use twitch_irc_parser::*;
 
 #[test]
