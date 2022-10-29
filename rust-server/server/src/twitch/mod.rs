@@ -1,3 +1,5 @@
+use std::env;
+
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -178,7 +180,13 @@ pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
     let twitch_message_timestamp = parse_twitch_request_header(twitch_message_timestamp);
     let twitch_message_signature = parse_twitch_request_header(twitch_message_signature);
 
-    let secret = "bajsballetelefonlur";
+    let secret = match env::var("TWITCH_SIGNING_SECRET") {
+        Ok(secret) => secret,
+        Err(e) => {
+            eprintln!("Could not get Twitch Signing Secret: {}", e);
+            return false;
+        }
+    };
     let hmac_message = format!("{}{}{}", twitch_message_id, twitch_message_timestamp, body);
 
     type HmacSha256 = Hmac<Sha256>;
