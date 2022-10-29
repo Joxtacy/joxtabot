@@ -227,6 +227,11 @@ mod tests {
 
     #[test]
     fn it_should_verify_twitch_message() {
+        let setup = || {
+            std::env::set_var("TWITCH_SIGNING_SECRET", "superdupersecret");
+        };
+        setup();
+
         let now = chrono::Utc::now();
 
         let timestamp = now.to_rfc3339();
@@ -239,7 +244,7 @@ mod tests {
         let hmac_message = format!("{}{}{}", message_id, &timestamp, body);
 
         type HmacSha256 = Hmac<Sha256>;
-        let mut mac = HmacSha256::new_from_slice("bajsballetelefonlur".as_bytes()).unwrap();
+        let mut mac = HmacSha256::new_from_slice("superdupersecret".as_bytes()).unwrap();
         mac.update(hmac_message.as_bytes());
 
         let bytes = mac.finalize().into_bytes();
