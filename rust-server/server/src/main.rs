@@ -22,26 +22,13 @@ use twitch::{
     SUBSCRIPTION_REVOKED_TYPE, WEBHOOK_CALLBACK_VERIFICATION_TYPE,
 };
 
+mod utils;
+use utils::init_env;
+
 const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
 // Not sure how to support SSL with tokio-tungstenite
 const _TWITCH_WS_URL_SSL: &str = "wss://irc-ws.chat.twitch.tv:443";
-
-fn init_env() -> (String, u16) {
-    std::env::set_var("RUST_LOG", "debug");
-    std::env::set_var("RUST_BACKTRACE", "1");
-
-    dotenv::dotenv().ok();
-    env_logger::init();
-
-    let token = match std::env::var("TWITCH_IRC_BOT_OAUTH") {
-        Ok(token) => token,
-        Err(e) => panic!("Can't proceed without bot token: {}", e),
-    };
-    let port = get_env_port();
-
-    (token, port)
-}
 
 mod string_utils;
 
@@ -359,12 +346,4 @@ async fn webhook_callback(
     let body = String::from_utf8(bytes.to_vec()).unwrap();
     println!("[WEBHOOK] Received POST request: {:?}", body);
     warp::reply::with_status(body, StatusCode::OK)
-}
-
-fn get_env_port() -> u16 {
-    let default_port = 8000;
-    std::env::var("RUST_PORT")
-        .unwrap_or_else(|_| default_port.to_string())
-        .parse::<u16>()
-        .unwrap_or(default_port)
 }
