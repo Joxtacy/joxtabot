@@ -42,6 +42,12 @@ mod websocket {
 async fn main() {
     let message_ids = Arc::new(Mutex::new(HashSet::<String>::new()));
 
+    // Used to notify tasks to shutdown.
+    let (notify_shutdown, _) = tokio::sync::broadcast::channel::<()>(1);
+
+    // Used in tasks to notify that they have finished shutting down.
+    let (send_shutdown, mut recv_shutdown) = mpsc::channel::<()>(1);
+
     // Init env variables
     let (token, port) = init_env();
 
@@ -49,6 +55,11 @@ async fn main() {
 
     let (tx, mut rx) = mpsc::channel(32);
     let (ws_client_tx, _) = broadcast::channel::<String>(32);
+
+    // Used to listen for shutdown command.
+    let mut shutdown_ws_client = notify_shutdown.subscribe();
+    // Used to notify that the task has shut down.
+    let send_shutdown_notifier = send_shutdown.clone();
 
     // Run our WebSocket client in its own task.
     tokio::task::spawn(async move {
@@ -110,11 +121,23 @@ async fn main() {
                         command => println!("MPSC Twitch Command: Not supported yet: {:?}", command)
                     }
                 },
+                _ = shutdown_ws_client.recv() => {
+                    // If a shutdown signal is received, close the socket and return.
+
+                    let _ = ws_stream.close(None);
+                    break;
+                }
                 else => {
                     break;
                 }
             }
         }
+
+        // By dropping the `send_shutdown_notifier` we tell the `recv_shutdown` that we have
+        // finished shutdown. It will stop awaiting this instance of this mpsc channel sender.
+        drop(send_shutdown_notifier);
+
+        println!("[WS CLIENT] Disconnected");
     });
 
     // Clone the sender of the broadcast channel so that we can also use it in the
@@ -124,14 +147,35 @@ async fn main() {
     // Create a new subscription on the sender for the broadcast channel.
     let with_receiver = warp::any().map(move || ws_client_tx1.subscribe());
 
+    // Used to listen for shutdown command.
+    let shutdown_ws = notify_shutdown.clone();
+    // Used to notify that the task has shut down.
+    let send_shutdown_notifier = send_shutdown.clone();
+
+    let with_shutdown_notifier = warp::any().map(move || shutdown_ws.subscribe());
+    let with_shutdown_sender = warp::any().map(move || send_shutdown_notifier.clone());
+
     // This is where our own client will connect
-    let websocket = warp::path("ws").and(warp::ws()).and(with_receiver).map(
-        |ws: warp::ws::Ws, ws_client_rx: broadcast::Receiver<String>| {
-            ws.on_upgrade(move |websocket| {
-                crate::websocket::server_utils::client_connected(websocket, ws_client_rx)
-            })
-        },
-    );
+    let websocket = warp::path("ws")
+        .and(warp::ws())
+        .and(with_receiver)
+        .and(with_shutdown_notifier)
+        .and(with_shutdown_sender)
+        .map(
+            |ws: warp::ws::Ws,
+             ws_client_rx: broadcast::Receiver<String>,
+             notify_shutdown: broadcast::Receiver<()>,
+             send_shutdown: mpsc::Sender<()>| {
+                ws.on_upgrade(move |websocket| {
+                    crate::websocket::server_utils::client_connected(
+                        websocket,
+                        ws_client_rx,
+                        notify_shutdown,
+                        send_shutdown,
+                    )
+                })
+            },
+        );
 
     // Root path. Just return some text for now.
     let root = warp::path::end().map(|| "Hello World!");
@@ -162,9 +206,46 @@ async fn main() {
             },
         );
 
+    // Use this as shutdown signal for the warp server.
+    let mut shutdown_server = notify_shutdown.subscribe();
+
     let get_routes = warp::get().and(root.or(websocket));
     let routes = get_routes.or(post_routes);
-    warp::serve(routes).run(([127, 0, 0, 1], port)).await;
+    let (_, server) =
+        warp::serve(routes).bind_with_graceful_shutdown(([127, 0, 0, 1], port), async move {
+            // Once we receive a shutdown signal here, we will stop awaiting and the server will
+            // shutdown once the closure finishes.
+            let _ = shutdown_server.recv().await;
+
+            println!("Shutting down the server");
+        });
+    tokio::task::spawn(server);
+
+    // We are waiting for a CTRL-C command, which means we should shut down.
+    // Could possibly add other mechanisms to listen to for shutdown signals.
+    match tokio::signal::ctrl_c().await {
+        Ok(()) => {
+            println!("Starting shutdown process...");
+        }
+        Err(err) => {
+            eprintln!("Failed to listen for shutdown signal. Reason: {}", err);
+        }
+    }
+
+    // Broadcast message to shutdown all tasks.
+    let _ = notify_shutdown.send(());
+
+    // Wait for the tasks to finish.
+    //
+    // We drop our sender first because the recv() call otherwise sleeps forever.
+    drop(send_shutdown);
+
+    // When every sender has gone out of scope, the recv call will return
+    // with an error. We ignore the error. This just means that all tasks
+    // have finished.
+    let _ = recv_shutdown.recv().await;
+
+    println!("So long, and thanks for all the fish.");
 }
 
 async fn webhook_callback(

@@ -1,8 +1,19 @@
 use futures_util::{SinkExt, StreamExt};
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc::Sender};
 use warp::ws::WebSocket;
 
-pub async fn client_connected(websocket: WebSocket, mut ws_client_rx: broadcast::Receiver<String>) {
+/// Sets up the message handling for a WebSocket connection.
+///
+/// # Note
+///
+/// The `_shutdown_complete` is only there to notify to the server that this async function has
+/// completed. It does that by simply going out of scope and being dropped.
+pub async fn client_connected(
+    websocket: WebSocket,
+    mut ws_client_rx: broadcast::Receiver<String>,
+    mut notify_shutdown: broadcast::Receiver<()>,
+    _shutdown_complete: Sender<()>,
+) {
     println!("[WS SERVER] User connected");
 
     let (mut tx, mut rx) = websocket.split();
@@ -40,9 +51,21 @@ pub async fn client_connected(websocket: WebSocket, mut ws_client_rx: broadcast:
                 }
 
             },
+            _ = notify_shutdown.recv() => {
+                // Notification received to shut down the websocket.
+                let res = tx.close().await;
+                match res {
+                    Ok(_) => println!("[WS SERVER] Closed Sink Successfully"),
+                    Err(err) => eprintln!("[WS SERVER] Failed to close Sink: {}", err)
+                }
+                println!("[WS SERVER] Closed connection.");
+                break;
+            }
             else => {
                 println!("[WS SERVER] Else branch executed");
             }
         }
     }
+
+    println!("[WS SERVER] Shutting down...");
 }
