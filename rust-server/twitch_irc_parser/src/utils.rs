@@ -37,15 +37,18 @@ pub fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
         return emotes;
     }
 
+    if raw_emotes.starts_with(r"\001") {
+        // TODO: Handle actions
+        // https://dev.twitch.tv/docs/irc/tags#privmsg-tags
+        eprintln!("This emotes tag is an action");
+        return emotes;
+    }
+
     let split_emotes = raw_emotes.split('/');
     for raw_emote in split_emotes {
         let mut emote_parts = raw_emote.split(':');
 
-        let emote_id = emote_parts
-            .next()
-            .expect("Should have emote ID")
-            .parse::<usize>()
-            .expect("Should be an integer");
+        let emote_id = emote_parts.next().expect("Should have emote ID");
 
         let mut text_positions: Vec<TextPosition> = vec![];
 
@@ -60,12 +63,18 @@ pub fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
                 .next()
                 .expect("Should have start index")
                 .parse::<usize>()
-                .expect("Should be an integer");
+                .unwrap_or_else(|_| {
+                    eprintln!("Should have been a positive integer");
+                    usize::default()
+                });
             let end_index = position_parts
                 .next()
                 .expect("Should have end index")
                 .parse::<usize>()
-                .expect("Should be an integer");
+                .unwrap_or_else(|_| {
+                    eprintln!("Should have been a positive integer");
+                    usize::default()
+                });
             let text_position = TextPosition {
                 start_index,
                 end_index,
@@ -74,7 +83,7 @@ pub fn parse_emotes(raw_emotes: &str) -> Vec<Emote> {
         }
 
         let emote = Emote {
-            id: emote_id,
+            id: emote_id.to_string(),
             positions: text_positions,
         };
         emotes.push(emote);

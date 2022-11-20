@@ -375,7 +375,7 @@ pub struct TextPosition {
 /// Represents an emotes id and where in the message this emote is.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Emote {
-    pub id: usize,
+    pub id: String,
     pub positions: Vec<TextPosition>,
 }
 
