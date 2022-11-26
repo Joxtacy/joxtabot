@@ -1,3 +1,4 @@
+use log::{debug, error, info, warn};
 use reqwest::StatusCode;
 use serde::Serialize;
 
@@ -10,6 +11,7 @@ impl Discord {
     ///
     /// Reference: https://discord.com/developers/docs/resources/channel#create-message
     pub async fn create_message(&self, channel_id: u64, message: &str) -> Result<String, String> {
+        info!(target: "DISCORD_UTILS", "Creating new message in channel: {}", channel_id);
         let url = format!(
             "https://discord.com/api/v10/channels/{}/messages",
             channel_id
@@ -23,6 +25,8 @@ impl Discord {
         let data = CreateMessage {
             content: message.to_string(),
         };
+
+        debug!(target: "DISCORD_UTILS", "Sending request to create new message in channel: {}", channel_id);
         let resp = client
             .post(url)
             .header("Authorization", format!("Bot {}", self.token))
@@ -34,15 +38,21 @@ impl Discord {
             Ok(response) => {
                 let status_code = response.status();
                 if StatusCode::is_success(&status_code) {
+                    debug!(target: "DISCORD_UTILS", "Successfully created message");
                     Ok("Message created successfully".to_string())
                 } else {
+                    let response_text = response.text().await.unwrap_or_else(|err| err.to_string());
+                    warn!(target: "DISCORD_UTILS", "Failed creating message. Reason: {}", response_text);
                     Err(format!(
-                        "Failed to create message. Reason: {:?}",
-                        response.text().await
+                        "Failed to create message. Reason: {}",
+                        response_text
                     ))
                 }
             }
-            Err(error) => Err(format!("Failed to create message. Reason: {:?}", error)),
+            Err(error) => {
+                error!(target: "TWITCH_UTILS", "Error when sending request. Reason: {:?}", error);
+                Err(format!("Failed to create message. Reason: {:?}", error))
+            }
         }
     }
 }

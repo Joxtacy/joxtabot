@@ -8,6 +8,7 @@ authors.workspace = true
 
 [dependencies]
 dotenv.workspace = true
+log.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 tokio.workspace = true
