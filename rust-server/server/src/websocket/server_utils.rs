@@ -1,4 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
+use log::{debug, error, info};
 use tokio::sync::{broadcast, mpsc::Sender};
 use warp::ws::WebSocket;
 
@@ -14,7 +15,7 @@ pub async fn client_connected(
     mut notify_shutdown: broadcast::Receiver<()>,
     _shutdown_complete: Sender<()>,
 ) {
-    println!("[WS SERVER] User connected");
+    info!(target: "WS_SERVER", "User connected");
 
     let (mut tx, mut rx) = websocket.split();
 
@@ -23,9 +24,9 @@ pub async fn client_connected(
         tokio::select! {
             msg = rx.next() => {
                 match msg {
-                    Some(msg) => println!("[WS SERVER] Received message: {:?}", msg),
+                    Some(msg) => debug!(target: "WS_SERVER", "Received message: {:?}", msg),
                     None => {
-                        println!("[WS SERVER] User disconnected");
+                        debug!(target: "WS_SERVER", "User disconnected");
                         break;
                     }
                 }
@@ -33,11 +34,11 @@ pub async fn client_connected(
             msg = ws_client_rx.recv() => {
                 match msg {
                     Ok(msg) => {
-                        println!("[WS SERVER] Received message from broadcast: {}", msg);
+                        debug!(target: "WS_SERVER", "Received message from broadcast: {}", msg);
                         let res = tx.send(warp::ws::Message::text(msg)).await;
                         if let Err(e) = res {
-                            eprintln!(
-                                "[WS SERVER] Could not send message to client. Reason: {:?}",
+                            error!(target: "WS_SERVER",
+                                "Could not send message to client. Reason: {:?}",
                                 e
                                 );
                             // If we end up here we exit out of the loop since the
@@ -46,7 +47,7 @@ pub async fn client_connected(
                         }
                     },
                     Err(e) => {
-                        eprintln!("[WS SERVER] Error while receiving message on broadcast channel: {:?}", e);
+                        error!(target: "WS_SERVER", "Error while receiving message on broadcast channel: {:?}", e);
                     }
                 }
 
@@ -55,17 +56,17 @@ pub async fn client_connected(
                 // Notification received to shut down the websocket.
                 let res = tx.close().await;
                 match res {
-                    Ok(_) => println!("[WS SERVER] Closed Sink Successfully"),
-                    Err(err) => eprintln!("[WS SERVER] Failed to close Sink: {}", err)
+                    Ok(_) => debug!(target: "WS_SERVER", "Closed Sink Successfully"),
+                    Err(err) => error!(target: "WS_SERVER", "Failed to close Sink: {}", err)
                 }
-                println!("[WS SERVER] Closed connection.");
+                debug!(target: "WS_SERVER", "Closed connection.");
                 break;
             }
             else => {
-                println!("[WS SERVER] Else branch executed");
+                debug!(target: "WS_SERVER", "Else branch executed");
             }
         }
     }
 
-    println!("[WS SERVER] Shutting down...");
+    info!(target: "WS_SERVER", "Shutting down...");
 }

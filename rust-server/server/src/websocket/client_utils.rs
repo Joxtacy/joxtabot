@@ -1,5 +1,6 @@
 use crate::string_utils;
 use futures_util::SinkExt;
+use log::{debug, error, info, warn};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use twitch_irc_parser::{Command, ParsedTwitchMessage, Tag};
@@ -53,7 +54,7 @@ pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessa
             let res = ws_stream.send("PONG :tmi.twitch.tv".into()).await;
 
             if let Err(e) = res {
-                eprintln!("[WS CLIENT] COULD NOT SEND PONG: {e:?}");
+                error!(target: "WS_CLIENT", "COULD NOT SEND PONG: {e:?}");
             }
         }
         Command::JOIN(channel) => {
@@ -63,7 +64,7 @@ pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessa
             };
 
             if let Some(nick) = nick {
-                println!("[WS CLIENT] {} joined #{}", nick, channel);
+                debug!(target: "WS_CLIENT", "{} joined #{}", nick, channel);
             }
         }
         Command::PART(channel) => {
@@ -73,7 +74,7 @@ pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessa
             };
 
             if let Some(nick) = nick {
-                println!("[WS CLIENT] {} left #{}", nick, channel);
+                debug!(target: "WS_CLIENT", "{} left #{}", nick, channel);
             }
         }
         Command::PRIVMSG {
@@ -92,7 +93,7 @@ pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessa
             } else {
                 "".to_string()
             };
-            println!("[WS CLIENT] @{} #{}: {}", display_name, channel, message);
+            info!(target: "WS_CLIENT", "@{} #{}: {}", display_name, channel, message);
 
             if message.contains("catJAM") {
                 let response = string_utils::create_privmsg(&channel, "catJAM");
@@ -103,8 +104,8 @@ pub async fn handle_message(ws_stream: &mut WsStream, message: ParsedTwitchMessa
             }
         }
         unsupported_message => {
-            println!(
-                "[WS CLIENT] UNSUPPORTED TWITCH COMMAND: {:?}",
+            warn!(target: "WS_CLIENT",
+                "UNSUPPORTED TWITCH COMMAND: {:?}",
                 unsupported_message
             );
         }

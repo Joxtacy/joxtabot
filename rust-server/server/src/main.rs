@@ -5,6 +5,7 @@ use std::{
 
 use discord_utils::DiscordBuilder;
 use futures_util::{SinkExt, StreamExt};
+use log::{debug, error, info, warn};
 use tokio::sync::{broadcast, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use warp::{
@@ -25,6 +26,7 @@ use twitch::{
 mod utils;
 use utils::init_env;
 
+const TARGET_WS_CLIENT: &str = "WS_CLIENT";
 const TWITCH_WS_URL: &str = "ws://irc-ws.chat.twitch.tv:80";
 
 // Not sure how to support SSL with tokio-tungstenite
@@ -51,7 +53,7 @@ async fn main() {
     // Init env variables
     let (token, port) = init_env();
 
-    println!("Running on port {}", port);
+    info!(target: "MAIN", "Running on port {}", port);
 
     let (tx, mut rx) = mpsc::channel(32);
     let (ws_client_tx, _) = broadcast::channel::<String>(32);
@@ -67,12 +69,15 @@ async fn main() {
         let mut res = connect_async(TWITCH_WS_URL).await;
 
         while let Err(e) = res {
-            eprintln!("[WS CLIENT] Failed to connect to Twitch: {:?}", e);
-            eprintln!("[WS CLIENT] Retrying...");
+            warn!(
+                target: TARGET_WS_CLIENT,
+                "Failed to connect to Twitch: {:?}", e
+            );
+            warn!(target: TARGET_WS_CLIENT, "Retrying...");
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             res = connect_async(TWITCH_WS_URL).await;
         }
-        println!("[WS CLIENT] Connected to Twitch");
+        debug!(target: TARGET_WS_CLIENT, "Connected to Twitch");
 
         let (mut ws_stream, _) = res.unwrap();
 
@@ -88,7 +93,7 @@ async fn main() {
                                 let lines = text.lines();
 
                                 for msg in lines {
-                                    println!("[WS CLIENT] Twitch Message: {}", msg);
+                                    debug!(target: TARGET_WS_CLIENT, "Twitch Message: {}", msg);
 
                                     // Parse the Twitch Message
                                     let parsed_message = parse_message(msg);
@@ -98,15 +103,15 @@ async fn main() {
                                 }
                             },
                             Message::Binary(bin) => {
-                                println!("[WS CLIENT] WS BINARY: {:?}", bin);
+                                debug!(target: TARGET_WS_CLIENT, "WS BINARY: {:?}", bin);
                             },
                             msg => {
-                                println!("[WS CLIENT] We got something else: {:?}", msg);
+                                debug!(target: TARGET_WS_CLIENT, "We got something else: {:?}", msg);
                             }
                         }
                     } else if let Err(e) = msg {
                         // We should try to reconnect here
-                        println!("[WS CLIENT] Error: {:?}", e);
+                        error!(target: TARGET_WS_CLIENT, "Error: {:?}", e);
                     }
                 },
                 Some(msg) = rx.recv() => {
@@ -115,10 +120,10 @@ async fn main() {
                             let priv_msg = string_utils::create_privmsg("joxtacy", &message);
                             let res = ws_stream.send(priv_msg.into()).await;
                             if let Err(e) = res {
-                                eprintln!("[WS CLIENT] Failed to send message to Twitch: {:?}", e);
+                                error!(target: TARGET_WS_CLIENT, "Failed to send message to Twitch: {:?}", e);
                             }
                         },
-                        command => println!("MPSC Twitch Command: Not supported yet: {:?}", command)
+                        command => debug!(target: TARGET_WS_CLIENT, "MPSC Twitch Command: Not supported yet: {:?}", command)
                     }
                 },
                 _ = shutdown_ws_client.recv() => {
@@ -137,7 +142,7 @@ async fn main() {
         // finished shutdown. It will stop awaiting this instance of this mpsc channel sender.
         drop(send_shutdown_notifier);
 
-        println!("[WS CLIENT] Disconnected");
+        info!(target: TARGET_WS_CLIENT, "Disconnected");
     });
 
     // Clone the sender of the broadcast channel so that we can also use it in the
@@ -217,7 +222,7 @@ async fn main() {
             // shutdown once the closure finishes.
             let _ = shutdown_server.recv().await;
 
-            println!("Shutting down the server");
+            info!(target: "SERVER", "Shutting down the server");
         });
     tokio::task::spawn(server);
 
@@ -225,10 +230,10 @@ async fn main() {
     // Could possibly add other mechanisms to listen to for shutdown signals.
     match tokio::signal::ctrl_c().await {
         Ok(()) => {
-            println!("Starting shutdown process...");
+            info!(target: "MAIN", "Starting shutdown process...");
         }
         Err(err) => {
-            eprintln!("Failed to listen for shutdown signal. Reason: {}", err);
+            error!(target: "MAIN", "Failed to listen for shutdown signal. Reason: {}", err.to_string());
         }
     }
 
@@ -245,7 +250,7 @@ async fn main() {
     // have finished.
     let _ = recv_shutdown.recv().await;
 
-    println!("So long, and thanks for all the fish.");
+    info!(target: "MAIN", "So long, and thanks for all the fish.");
 }
 
 async fn webhook_callback(
@@ -261,7 +266,7 @@ async fn webhook_callback(
 
     let verification = verify_twitch_message(&headers, &body_str);
     if !verification {
-        eprintln!("[WEBHOOK] Message not from Twitch. Abort.");
+        debug!(target: "WEBHOOK", "Message not from Twitch. Abort.");
         return warp::reply::with_status("BAD_REQUEST".to_string(), StatusCode::BAD_REQUEST);
     }
 
@@ -275,11 +280,11 @@ async fn webhook_callback(
             let error_message = result.unwrap_err();
             match error_message {
                 twitch::TwitchTimestampError::TooOld => {
-                    eprintln!("[WEBHOOK] Message from Twitch is too old. Rejecting.");
+                    error!(target: "WEBHOOK", "Message from Twitch is too old. Rejecting.");
                     return warp::reply::with_status("Message Too Old".to_string(), StatusCode::OK);
                 }
                 twitch::TwitchTimestampError::NotAValidTimestamp => {
-                    eprintln!("[WEBHOOK] Could not parse timestamp in Twitch-Eventsub-Message-Timestamp header");
+                    error!(target: "WEBHOOK", "Could not parse timestamp in Twitch-Eventsub-Message-Timestamp header");
                     return warp::reply::with_status(
                         "Invalid Timestamp".to_string(),
                         StatusCode::BAD_REQUEST,
@@ -309,7 +314,7 @@ async fn webhook_callback(
         }
     }
 
-    println!("[WEBHOOK] Twitch message verified");
+    debug!(target: "WEBHOOK", "Twitch message verified");
 
     let twitch_message_type = headers.get("Twitch-Eventsub-Message-Type");
     let twitch_message_type = parse_twitch_request_header(twitch_message_type);
@@ -331,15 +336,15 @@ async fn webhook_callback(
             TwitchCommand::First(ref username) => {
                 let res = std::fs::write("first.txt", format!("First: {}", username));
                 match res {
-                    Ok(()) => println!("Writing `first` succeeded"),
-                    Err(e) => eprintln!("Writing `first` failed: {:?}", e),
+                    Ok(()) => info!(target: "WEBHOOK", "Writing `first` succeeded"),
+                    Err(e) => error!(target: "WEBHOOK", "Writing `first` failed: {:?}", e),
                 }
             }
             TwitchCommand::StreamOnline => {
                 let res = std::fs::write("first.txt", "First:");
                 match res {
-                    Ok(()) => println!("Resetting `first` succeeded"),
-                    Err(e) => eprintln!("Resetting `first` failed: {:?}", e),
+                    Ok(()) => info!(target: "WEBHOOK", "Resetting `first` succeeded"),
+                    Err(e) => error!(target: "WEBHOOK", "Resetting `first` failed: {:?}", e),
                 }
 
                 let token = std::env::var("TWITCH_APP_ACCESS_TOKEN").unwrap();
@@ -397,14 +402,14 @@ async fn webhook_callback(
                 }
             }
             ref unsupported_message => {
-                eprintln!("[WEBHOOK] Unsupported Message: {:?}", unsupported_message);
+                warn!(target: "WEBHOOK", "Unsupported Message: {:?}", unsupported_message);
             }
         }
 
         let res = tx.send(twitch_command).await;
         if let Err(e) = res {
-            eprintln!(
-                "[WEBHOOK] Could not send message to our MPSC channel: {:?}",
+            error!(target: "WEBHOOK",
+                "Could not send message to our MPSC channel: {:?}",
                 e
             );
         }
@@ -417,14 +422,14 @@ async fn webhook_callback(
     } else if twitch_message_type == SUBSCRIPTION_REVOKED_TYPE {
         // This is when webhook subscription was revoked
         let message = serde_json::from_str::<RevokedSubscription>(&body_str).unwrap();
-        println!(
-            "[WEBHOOK] ERROR: Webhook subscription revoked. Reason: {}",
+        error!(target: "WEBHOOK",
+            "Webhook subscription revoked. Reason: {}",
             message.subscription.status
         );
         return warp::reply::with_status("".to_string(), StatusCode::NO_CONTENT);
     }
 
     let body = String::from_utf8(bytes.to_vec()).unwrap();
-    println!("[WEBHOOK] Received POST request: {:?}", body);
+    debug!(target: "WEBHOOK", "Received POST request: {:?}", body);
     warp::reply::with_status(body, StatusCode::OK)
 }

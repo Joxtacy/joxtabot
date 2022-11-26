@@ -1,6 +1,7 @@
 use std::env;
 
 use hmac::{Hmac, Mac};
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use warp::http::{HeaderMap, HeaderValue};
@@ -96,7 +97,9 @@ pub const SUBSCRIPTION_REVOKED_TYPE: &str = "revocation";
 pub fn handle_webhook_message(message: TwitchMessage) -> TwitchCommand {
     let message_type = message.subscription.message_type;
 
-    match &message_type[..] {
+    info!(target: "twitch.handle_webhook_message", "Got message type: {}", message_type);
+
+    let twitch_command = match &message_type[..] {
         "stream.online" => TwitchCommand::StreamOnline,
         "channel.channel_points_custom_reward_redemption.add" => {
             let reward_title = message.event.reward.title;
@@ -117,16 +120,20 @@ pub fn handle_webhook_message(message: TwitchMessage) -> TwitchCommand {
                 "+1 Situp" => TwitchCommand::Situp(1),
                 "Emote-only Chat" => TwitchCommand::EmoteOnly,
                 _ => {
-                    println!("[TWITCH] Reward not supported: {}", reward_title);
+                    debug!(target: "twitch.handle_webhook_message", "Reward not supported: {}", reward_title);
                     TwitchCommand::UnsupportedMessage
                 }
             }
         }
         _ => {
-            println!("Unknown message type: {}", message_type);
+            debug!(target: "twitch.handle_webhook_message", "Unsupported message type: {}", message_type);
             TwitchCommand::UnsupportedMessage
         }
-    }
+    };
+
+    info!(target: "twitch.handle_webhook_message", "Returning TwitchCommand: {:?}", twitch_command);
+
+    twitch_command
 }
 
 pub fn parse_twitch_request_header(header: Option<&HeaderValue>) -> String {
@@ -151,11 +158,13 @@ pub enum TwitchTimestampError {
 pub fn verify_twitch_message_age(
     timestamp_header: Option<&HeaderValue>,
 ) -> Result<(), TwitchTimestampError> {
+    debug!(target: "twitch.verify_twitch_message_age", "Verify Twitch message age");
     let twitch_message_timestamp = parse_twitch_request_header(timestamp_header);
 
     let timestamp = chrono::DateTime::parse_from_rfc3339(&twitch_message_timestamp);
 
     if timestamp.is_err() {
+        warn!(target: "twitch.verify_twitch_message_age", "Not a valid timestamp: {}", twitch_message_timestamp);
         return Err(TwitchTimestampError::NotAValidTimestamp);
     }
 
@@ -165,13 +174,16 @@ pub fn verify_twitch_message_age(
     let old_message_duration = chrono::Duration::minutes(10);
 
     if timestamp + old_message_duration < now {
+        debug!(target: "twitch.verify_twitch_message_age", "Message was too old");
         return Err(TwitchTimestampError::TooOld);
     }
 
+    debug!(target: "twitch.verify_twitch_message_age", "Message was ok");
     Ok(())
 }
 
 pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
+    debug!(target: "twitch.verify_twitch_message", "Verify Twitch message");
     let twitch_message_id = headers.get("Twitch-Eventsub-Message-Id");
     let twitch_message_timestamp = headers.get("Twitch-Eventsub-Message-Timestamp");
     let twitch_message_signature = headers.get("Twitch-Eventsub-Message-Signature");
