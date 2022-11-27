@@ -6,9 +6,18 @@ pub fn parse_badges(raw_badges: &str) -> Vec<Badge> {
     let split_badges = raw_badges.split(',');
 
     for raw_badge in split_badges {
+        if raw_badge.is_empty() {
+            continue;
+        }
         let mut badge_parts = raw_badge.split('/');
-        let badge_name = badge_parts.next().expect("Badge name should exist");
-        let badge_version = badge_parts.next().expect("Badge version should exist");
+        let Some(badge_name) = badge_parts.next() else {
+            continue;
+        };
+        let Some(badge_version) = badge_parts.next() else {
+            badges.push(Badge::Unknown);
+            continue;
+        };
+
         let badge_version = badge_version.parse::<usize>();
 
         let badge_version = badge_version.unwrap_or(0);
