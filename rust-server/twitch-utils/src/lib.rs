@@ -3,11 +3,11 @@ use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 pub struct Data {
-    pub id: u64,
-    pub user_id: u64,
+    pub id: String,
+    pub user_id: String,
     pub user_login: String,
     pub user_name: String,
-    pub game_id: u64,
+    pub game_id: String,
     pub game_name: String,
     #[serde(rename = "type")]
     pub stream_type: String,
