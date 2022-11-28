@@ -49,7 +49,7 @@ fn message_with_tags() {
     expected_tags.insert(
         String::from("emotes"),
         Tag::Emotes(vec![Emote {
-            id: 62835,
+            id: String::from("62835"),
             positions: vec![TextPosition {
                 start_index: 0,
                 end_index: 10,

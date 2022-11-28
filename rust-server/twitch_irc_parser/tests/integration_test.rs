@@ -22,7 +22,7 @@ fn create_tags() -> HashMap<String, Tag> {
     tags.insert(
         String::from("emotes"),
         Tag::Emotes(vec![Emote {
-            id: 33,
+            id: String::from("33"),
             positions: vec![TextPosition {
                 start_index: 0,
                 end_index: 7,
