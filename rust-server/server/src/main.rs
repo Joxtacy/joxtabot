@@ -341,6 +341,8 @@ async fn webhook_callback(
                 }
             }
             TwitchCommand::StreamOnline => {
+                info!(target: "WEBHOOK", "Received StreamOnline message");
+                debug!(target: "WEBHOOK", "Resetting `first`");
                 let res = std::fs::write("first.txt", "First:");
                 match res {
                     Ok(()) => info!(target: "WEBHOOK", "Resetting `first` succeeded"),
@@ -354,9 +356,11 @@ async fn webhook_callback(
                     .parse()
                     .unwrap();
 
+                info!(target: "WEBHOOK", "Getting stream info");
                 if let Ok(stream_info) =
                     twitch_utils::get_stream_info(token, client_id, user_id).await
                 {
+                    debug!(target: "WEBHOOK", "Got stream info: {:?}", stream_info);
                     let token = std::env::var("DISCORD_BOT_TOKEN").unwrap();
                     // let channel_id = std::env::var("DISCORD_TESTING_JOXTABOT_CHANNELID")
                     let channel_id = std::env::var("DISCORD_JOXTACY_IS_LIVE_CHANNELID")
@@ -376,10 +380,12 @@ async fn webhook_callback(
                             "something went wrong",
                         )
                     };
+                    info!(target: "WEBHOOK", "Sending message to Discord: {}", message);
                     let _res = DiscordBuilder::new(&token)
                         .build()
                         .create_message(channel_id, &message)
                         .await;
+                    debug!(target: "WEBHOOK", "Message to Discord sent: {:?}", _res);
                 }
             }
             TwitchCommand::EmoteOnly => {
