@@ -80,7 +80,6 @@ fn message_with_tags() {
     assert_eq!(actual, expected_parsed_message);
 }
 
-// TODO: Fix this test
 #[test]
 fn ping_has_command_component() {
     let message = "PING :tmi.twitch.tv";
@@ -126,12 +125,53 @@ fn test_parse_message() {
 fn multiple_messages() {
     let message = ":joxtabot!joxtabot@joxtabot.tmi.twitch.tv JOIN #joxtacy\r\n:joxtabot.tmi.twitch.tv 353 joxtabot = #joxtacy :joxtabot\r\n:joxtabot.tmi.twitch.tv 366 joxtabot #joxtacy :End of /NAMES list\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/membership\r\n:tmi.twitch.tv CAP * ACK :twitch.tv/tags twitch.tv/commands";
 
-    let _expected_messages: Vec<ParsedTwitchMessage> = vec![];
+    let mut expected_messages: Vec<ParsedTwitchMessage> = vec![];
 
     let actual = parse_messages(message);
 
-    for message in actual {
+    expected_messages.push(ParsedTwitchMessage {
+        source: Some(Source {
+            nick: Some("joxtabot".to_string()),
+            host: "joxtabot@joxtabot.tmi.twitch.tv".to_string(),
+        }),
+        command: Command::JOIN("joxtacy".to_string()),
+    });
+
+    expected_messages.push(ParsedTwitchMessage {
+        source: Some(Source {
+            nick: None,
+            host: "joxtabot.tmi.twitch.tv".to_string(),
+        }),
+        command: Command::NUMBER(353, Some("joxtabot".to_string())),
+    });
+
+    expected_messages.push(ParsedTwitchMessage {
+        source: Some(Source {
+            nick: None,
+            host: "joxtabot.tmi.twitch.tv".to_string(),
+        }),
+        command: Command::NUMBER(366, Some("End of /NAMES list".to_string())),
+    });
+
+    expected_messages.push(ParsedTwitchMessage {
+        source: Some(Source {
+            nick: None,
+            host: "tmi.twitch.tv".to_string(),
+        }),
+        command: Command::UNSUPPORTED,
+    });
+
+    expected_messages.push(ParsedTwitchMessage {
+        source: Some(Source {
+            nick: None,
+            host: "tmi.twitch.tv".to_string(),
+        }),
+        command: Command::UNSUPPORTED,
+    });
+
+    for message in &actual {
         println!("{:?}", message);
     }
-    todo!("IMPLEMENT ME!!!");
+
+    assert_eq!(expected_messages, actual);
 }
