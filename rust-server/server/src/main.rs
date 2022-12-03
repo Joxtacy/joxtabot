@@ -84,6 +84,12 @@ async fn main() {
         // Init the WebSocket connection to our Twitch channel.
         crate::websocket::client_utils::init_ws(&mut ws_stream, &token).await;
 
+        debug!(target: TARGET_WS_CLIENT, "Sending intro message");
+        ws_stream
+            .send(string_utils::create_privmsg("joxtacy", "I have risen!").into())
+            .await
+            .unwrap();
+
         loop {
             tokio::select! {
                 Some(msg) = ws_stream.next() => {
@@ -129,6 +135,8 @@ async fn main() {
                 _ = shutdown_ws_client.recv() => {
                     // If a shutdown signal is received, close the socket and return.
 
+                    debug!(target: TARGET_WS_CLIENT, "Sending good bye message");
+                    ws_stream.send(string_utils::create_privmsg("joxtacy", "So long, and thanks for all the fish.").into()).await.unwrap_or_else(|_err| warn!(target: TARGET_WS_CLIENT, "Failed to send bye bye message"));
                     let _ = ws_stream.close(None);
                     break;
                 }
