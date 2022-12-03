@@ -474,6 +474,7 @@ name = "discord-utils"
 version = "0.1.0"
 dependencies = [
  "dotenv",
+ "log",
  "pretty_assertions",
  "reqwest",
  "serde",
@@ -1797,6 +1798,7 @@ name = "twitch-utils"
 version = "0.1.0"
 dependencies = [
  "dotenv",
+ "log",
  "pretty_assertions",
  "reqwest",
  "serde",
