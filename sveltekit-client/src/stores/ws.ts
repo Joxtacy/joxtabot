@@ -9,7 +9,7 @@ export const connect = (url = "ws://localhost:8000/ws") => {
   ws.addEventListener("open", () => {
     console.log("[WS] Socket connected");
     interval = setInterval(() => {
-        ws.send("[PING]");
+      ws.send("[PING]");
     }, 30_000);
   });
 

@@ -51,21 +51,12 @@
   }
 </script>
 
-<audio bind:this={audioElem} ></audio>
+<audio bind:this={audioElem} />
 
 <video class:active bind:this={video} src="/derp.mp4" bind:paused>
-    <track kind="captions">
+  <track kind="captions" />
 </video>
 
-<style>
-    video {
-        display: none;
-    }
-
-    .active {
-        display: inline-block;
-    }
-</style>
 <!--
 <main>
   <ul>
@@ -88,3 +79,12 @@
   }
 </style>
 -->
+<style>
+  video {
+    display: none;
+  }
+
+  .active {
+    display: inline-block;
+  }
+</style>
