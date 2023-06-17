@@ -2,12 +2,13 @@
 async fn main() {
     dotenv::dotenv().ok();
 
+    let url = "https://api.twitch.tv/helix/streams".to_string();
     let token = std::env::var("TWITCH_APP_ACCESS_TOKEN").unwrap();
     let client_id = std::env::var("TWITCH_CLIENT_ID").unwrap();
     let user_id = std::env::var("TWITCH_JOXTACY_USER_ID")
         .unwrap()
         .parse()
         .unwrap();
-    let res = twitch_utils::get_stream_info(token.to_string(), client_id, user_id).await;
+    let res = twitch_utils::get_stream_info(url, token.to_string(), client_id, user_id).await;
     println!("How did it go? {:?}", res);
 }

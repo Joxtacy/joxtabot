@@ -365,8 +365,9 @@ async fn webhook_callback(
                     .unwrap();
 
                 info!(target: "WEBHOOK", "Getting stream info");
+                let stream_info_url = "https://api.twitch.tv/helix/streams".to_string();
                 if let Ok(stream_info) =
-                    twitch_utils::get_stream_info(token, client_id, user_id).await
+                    twitch_utils::get_stream_info(stream_info_url, token, client_id, user_id).await
                 {
                     debug!(target: "WEBHOOK", "Got stream info: {:?}", stream_info);
                     let token = std::env::var("DISCORD_BOT_TOKEN").unwrap();
