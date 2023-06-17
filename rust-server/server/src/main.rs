@@ -137,7 +137,7 @@ async fn main() {
 
                     debug!(target: TARGET_WS_CLIENT, "Sending good bye message");
                     ws_stream.send(string_utils::create_privmsg("joxtacy", "So long, and thanks for all the fish.").into()).await.unwrap_or_else(|_err| warn!(target: TARGET_WS_CLIENT, "Failed to send bye bye message"));
-                    let _ = ws_stream.close(None);
+                    let _ = ws_stream.close(None).await;
                     break;
                 }
                 else => {

@@ -206,7 +206,6 @@ pub fn verify_twitch_message(headers: &HeaderMap, body: &str) -> bool {
     let hmac_prefix = "sha256="; // Twitch signature starts with `sha256=`
     let split_strings = twitch_message_signature
         .split(hmac_prefix)
-        .into_iter()
         .collect::<Vec<&str>>();
 
     // If split fails, that means it is not a valid signature
