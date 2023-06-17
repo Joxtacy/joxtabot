@@ -96,7 +96,7 @@ pub fn parse_message(message: &str) -> ParsedTwitchMessage {
 /// use std::collections::HashMap;
 /// use twitch_irc_parser::{parse_messages, Command, ParsedTwitchMessage, Source};
 ///
-/// let messages = "PING :tmi.twitch.tv\r\n:tmi.twitch.tv HOSTTARGET #abc :xyz 10"
+/// let messages = "PING :tmi.twitch.tv\r\n:tmi.twitch.tv HOSTTARGET #abc :xyz 10";
 ///
 /// let parsed = parse_messages(messages);
 ///
