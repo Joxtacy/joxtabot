@@ -16,7 +16,8 @@ pub struct Twitch {
 impl Twitch {
     const BASE_URL: &str = "https://api.twitch.tv/helix";
 
-    pub fn new(token: String, client_id: String, client: Client) -> Self {
+    #[must_use]
+    pub const fn new(token: String, client_id: String, client: Client) -> Self {
         Self {
             token,
             client_id,
@@ -85,20 +86,21 @@ impl Twitch {
     /// Fetches the current stream information for the `user_id` provided.
     ///
     /// Reference: `https://dev.twitch.tv/docs/api/reference#get-streams`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when token is invalid and cannot be refreshed.
     pub async fn get_stream_info(&mut self, user_id: u64) -> Result<StreamInfo, String> {
         info!(target: TARGET, "Getting stream info for user: {}", user_id);
 
         let result = self.validate_token().await;
 
         if let Some(error) = result.err() {
-            return Err(format!(
-                "Could not validate token. Reason: {}",
-                error.to_string()
-            ));
+            return Err(format!("Could not validate token. Reason: {error}"));
         }
 
-        let url = format!("{}{}", Twitch::BASE_URL, "/streams");
-        let resp = self
+        let url = format!("{}{}", Self::BASE_URL, "/streams");
+        let response = self
             .client
             .get(url)
             .bearer_auth(&self.token)
@@ -107,7 +109,7 @@ impl Twitch {
             .send()
             .await;
 
-        match resp {
+        match response {
             Ok(response) => {
                 debug!(target: TARGET, "Got response: {:?}", response);
                 let status_code = response.status();
@@ -122,18 +124,17 @@ impl Twitch {
                                 "Failed parsing response body. Reason: {}",
                                 e.to_string()
                             );
-                            Err(format!("Failed to get stream info. Reason: {:?}", e))
+                            Err(format!("Failed to get stream info. Reason: {e}"))
                         }
                     }
                 } else {
                     let response_text = response.text().await.unwrap_or_else(|err| err.to_string());
                     warn!(
                         target: TARGET,
-                        "Failed getting stream info. Reason: {}", response_text
+                        "Failed getting stream info. Reason: {response_text}"
                     );
                     Err(format!(
-                        "Failed to get stream info. Reason: {}",
-                        response_text
+                        "Failed to get stream info. Reason: {response_text}"
                     ))
                 }
             }
@@ -142,7 +143,7 @@ impl Twitch {
                     target: TARGET,
                     "Error when sending request. Reason: {:?}", error
                 );
-                Err(format!("Failed to get stream info. Reason: {:?}", error))
+                Err(format!("Failed to get stream info. Reason: {error}"))
             }
         }
     }

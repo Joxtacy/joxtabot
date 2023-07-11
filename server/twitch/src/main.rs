@@ -11,10 +11,8 @@ async fn main() {
         std::env::var("TWITCH_CLIENT_ID").expect("Needs a Twitch client id to continue");
     let client = reqwest::Client::new();
 
-    let user_id = 54605357;
+    let user_id = 54_605_357;
 
     let mut twitch = Twitch::new(token, client_id, client);
     let response = twitch.get_stream_info(user_id).await;
-
-    dbg!(response);
 }
