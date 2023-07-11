@@ -8,7 +8,7 @@ async fn main() {
 
     let discord = Discord::new(&token, client);
     let message = "henlo";
-    let result = discord
+    let _result = discord
         .create_message(843_289_296_260_825_098, message)
         .await;
 }

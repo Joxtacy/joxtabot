@@ -14,5 +14,5 @@ async fn main() {
     let user_id = 54_605_357;
 
     let mut twitch = Twitch::new(token, client_id, client);
-    let response = twitch.get_stream_info(user_id).await;
+    let _response = twitch.get_stream_info(user_id).await;
 }
