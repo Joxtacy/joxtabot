@@ -24,7 +24,7 @@ impl Twitch {
         }
     }
 
-    async fn refresh_token(&mut self) {
+    async fn refresh_token(&mut self) -> Result<(), reqwest::Error> {
         info!(target: TARGET, "Refreshing token");
 
         let url = "https://id.twitch.tv/oauth2/token";
@@ -38,68 +38,47 @@ impl Twitch {
             ),
             ("grant_type", &"client_credentials".to_owned()),
         ];
-        let result = self.client.post(url).form(&params).send().await;
+        let response = self.client.post(url).form(&params).send().await?;
 
-        match result {
-            Ok(response) => {
-                let json = response.json::<Credentials>().await;
+        let credentials = response.json::<Credentials>().await?;
 
-                match json {
-                    Ok(credentials) => {
-                        debug!(
-                            target: TARGET,
-                            "New access token: {}", credentials.access_token
-                        );
-                        self.token = credentials.access_token;
-                    }
-                    Err(error) => error!(
-                        target: TARGET,
-                        "Failed to get json data from response: Reason: {}",
-                        error.to_string()
-                    ),
-                }
-            }
-            Err(error) => error!(
-                target: TARGET,
-                "Failed to send request. Reason: {}",
-                error.to_string()
-            ),
-        }
+        debug!(
+            target: TARGET,
+            "New access token: {}", credentials.access_token
+        );
+        self.token = credentials.access_token;
+        Ok(())
     }
 
-    async fn validate_token(&mut self) {
+    async fn validate_token(&mut self) -> Result<(), reqwest::Error> {
         info!(target: TARGET, "Validating token");
 
         let url = "https://id.twitch.tv/oauth2/validate";
 
-        let result = self.client.get(url).bearer_auth(&self.token).send().await;
+        let response = self.client.get(url).bearer_auth(&self.token).send().await?;
 
-        match result {
-            Ok(response) => match response.status() {
-                StatusCode::UNAUTHORIZED => self.refresh_token().await,
-                StatusCode::OK => {
-                    let json = response.json::<Validation>().await;
-                    match json {
-                        Ok(validation) => {
-                            debug!(
-                                target: TARGET,
-                                "Token expires in: {} seconds", validation.expires_in
-                            );
-                        }
-                        Err(error) => error!(
-                            target: TARGET,
-                            "Failed to get json data from response: Reason: {}",
-                            error.to_string()
-                        ),
-                    }
-                }
-                _ => {}
-            },
-            Err(error) => error!(
-                target: TARGET,
-                "Failed to send request. Reason: {}",
-                error.to_string()
-            ),
+        match response.status() {
+            StatusCode::UNAUTHORIZED => {
+                info!(target: TARGET, "Token has expired.");
+                self.refresh_token().await?;
+                Ok(())
+            }
+            StatusCode::OK => {
+                let validation = response.json::<Validation>().await?;
+                debug!(
+                    target: TARGET,
+                    "Token is valid. Expires in: {} seconds", validation.expires_in
+                );
+                Ok(())
+            }
+            status_code => {
+                warn!(
+                    target: TARGET,
+                    "Did not recognise response code: {}",
+                    status_code.as_u16()
+                );
+                Ok(())
+            }
         }
     }
 
@@ -109,7 +88,14 @@ impl Twitch {
     pub async fn get_stream_info(&mut self, user_id: u64) -> Result<StreamInfo, String> {
         info!(target: TARGET, "Getting stream info for user: {}", user_id);
 
-        self.validate_token().await;
+        let result = self.validate_token().await;
+
+        if let Some(error) = result.err() {
+            return Err(format!(
+                "Could not validate token. Reason: {}",
+                error.to_string()
+            ));
+        }
 
         let url = format!("{}{}", Twitch::BASE_URL, "/streams");
         let resp = self
