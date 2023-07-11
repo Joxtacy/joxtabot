@@ -15,6 +15,7 @@ impl Discord {
     const BASE_URL: &str = "https://discord.com/api/v10";
 
     /// Creates a new Discord instance
+    #[must_use]
     pub fn new(token: &str, client: Client) -> Self {
         Self {
             token: token.to_string(),
@@ -24,19 +25,24 @@ impl Discord {
 
     /// Creates a new message in the provided `channel_id`.
     ///
-    /// Reference: https://discord.com/developers/docs/resources/channel#create-message
+    /// Reference: <https://discord.com/developers/docs/resources/channel#create-message>
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when request to Discord failed.
     pub async fn create_message(&self, channel_id: u64, message: &str) -> Result<String, String> {
-        info!(
-            target: TARGET,
-            "Creating new message in channel: {}", channel_id
-        );
-        let url = format!("{}/channels/{}/messages", Discord::BASE_URL, channel_id);
-        // let url = "https://example.com/".to_string();
-
         #[derive(Debug, Serialize)]
         struct CreateMessage {
             content: String,
         }
+
+        info!(
+            target: TARGET,
+            "Creating new message in channel: {}", channel_id
+        );
+
+        let url = format!("{}/channels/{}/messages", Self::BASE_URL, channel_id);
+
         let data = CreateMessage {
             content: message.to_string(),
         };
@@ -63,20 +69,17 @@ impl Discord {
                     let response_text = response.text().await.unwrap_or_else(|err| err.to_string());
                     warn!(
                         target: TARGET,
-                        "Failed creating message. Reason: {}", response_text
+                        "Failed creating message. Reason: {response_text}"
                     );
-                    Err(format!(
-                        "Failed to create message. Reason: {}",
-                        response_text
-                    ))
+                    Err(format!("Failed to create message. Reason: {response_text}"))
                 }
             }
             Err(error) => {
                 error!(
                     target: TARGET,
-                    "Error when sending request. Reason: {:?}", error
+                    "Error when sending request. Reason: {error}"
                 );
-                Err(format!("Failed to create message. Reason: {:?}", error))
+                Err(format!("Failed to create message. Reason: {error}"))
             }
         }
     }

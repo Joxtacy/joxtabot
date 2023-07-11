@@ -8,8 +8,7 @@ async fn main() {
 
     let discord = Discord::new(&token, client);
     let message = "henlo";
-    discord
-        .create_message(843289296260825098, message)
-        .await
-        .unwrap();
+    let result = discord
+        .create_message(843_289_296_260_825_098, message)
+        .await;
 }
