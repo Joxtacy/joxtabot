@@ -2,6 +2,7 @@
 
 members = [
   "discord",
+  "twitch",
 ]
 
 [workspace.package]
