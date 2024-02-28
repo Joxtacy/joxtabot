@@ -1,0 +1,32 @@
+* {
+  font-family: Inter, Roboto, sans-serif;
+}
+
+body {
+  height: 100vh;
+  margin: 0;
+  color: #eee;
+  background: #121212;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    color: #222222;
+    background: #ffffff;
+  }
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.chat-message {
+  transition: opacity ease-out 1s;
+}
+
+.hidden {
+  opacity: 0;
+}

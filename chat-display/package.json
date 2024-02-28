@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "dev": "bun run --hot src/index.tsx"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "hono": "^4.0.4"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.4",
+    "@types/bun": "latest"
+  },
+  "module": "src/index.ts"
+}
