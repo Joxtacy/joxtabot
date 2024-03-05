@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs};
 
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
@@ -6,15 +6,69 @@ use amqprs::{
     connection::{Connection, OpenConnectionArguments},
     BasicProperties,
 };
+use async_trait::async_trait;
+use chrono::DateTime;
+use serde::{Deserialize, Serialize};
 use tokio::time;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use twitch_irc::{
-    login::StaticLoginCredentials, message::ServerMessage, ClientConfig, SecureTCPTransport,
-    TwitchIRCClient,
+    login::{RefreshingLoginCredentials, TokenStorage, UserAccessToken},
+    message::ServerMessage,
+    ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
+#[derive(Debug, Serialize, Deserialize)]
+struct CustomTokenStorage {
+    pub access_token: String,
+    pub refresh_token: String,
+    pub created_at: String,
+    pub expires_at: Option<String>,
+}
+
+#[async_trait]
+impl TokenStorage for CustomTokenStorage {
+    type LoadError = std::io::Error; // or some other error
+    type UpdateError = std::io::Error;
+
+    async fn load_token(&mut self) -> Result<UserAccessToken, Self::LoadError> {
+        // Load the currently stored token from storage
+        let contents = fs::read_to_string("token.json")?;
+        let storage = serde_json::from_str::<CustomTokenStorage>(&contents)?;
+        let expires_at = match &storage.expires_at {
+            Some(expires_at) => {
+                let expires_at = DateTime::parse_from_str(expires_at, "%+");
+                let expires_at = expires_at.unwrap().to_utc();
+
+                Some(expires_at)
+            }
+            None => None,
+        };
+
+        let created_at = DateTime::parse_from_str(&storage.created_at, "%+");
+        let created_at = created_at.unwrap().to_utc();
+        let token = UserAccessToken {
+            access_token: storage.access_token.clone(),
+            refresh_token: storage.refresh_token.clone(),
+            created_at,
+            expires_at,
+        };
+
+        Ok(token)
+    }
+
+    async fn update_token(&mut self, token: &UserAccessToken) -> Result<(), Self::UpdateError> {
+        // Called after the token was updated successfully, to save the new token.
+        // After `update_token()` completes, the `load_token()` method should then return
+        // that token for future invocations
+        let contents = serde_json::to_string(&token)?;
+        fs::write("token.json", contents)?;
+
+        Ok(())
+    }
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // construct a subscriber that prints formatted traces to stdout
     // global subscriber with log level according to RUST_LOG
     tracing_subscriber::registry()
@@ -22,14 +76,19 @@ async fn main() {
         .with(EnvFilter::from_default_env())
         .try_init()
         .ok();
-    let rabbit_host = env::var("RABBIT_HOST").unwrap_or("localhost".to_string());
 
-    let config = ClientConfig::new_simple(StaticLoginCredentials::new(
-        String::from("joxtabot"),
-        Some(String::from("thpg9474xi3g4sj6ograapccgfzdhz")),
-    ));
-    let (mut incoming_messages, client) =
-        TwitchIRCClient::<SecureTCPTransport, StaticLoginCredentials>::new(config);
+    let rabbit_host = env::var("RABBIT_HOST").unwrap_or("localhost".to_string());
+    let client_id = env::var("CLIENT_ID").unwrap_or("".to_string());
+    let client_secret = env::var("CLIENT_SECRET").unwrap_or("".to_string());
+    let storage = fs::read_to_string("token.json").unwrap();
+    let storage = serde_json::from_str::<CustomTokenStorage>(&storage).unwrap();
+
+    let credentials = RefreshingLoginCredentials::init(client_id, client_secret, storage);
+    let config = ClientConfig::new_simple(credentials);
+    let (mut incoming_messages, client) = TwitchIRCClient::<
+        SecureTCPTransport,
+        RefreshingLoginCredentials<CustomTokenStorage>,
+    >::new(config);
 
     // open a connection to RabbitMQ server
     let connection = Connection::open(&OpenConnectionArguments::new(
@@ -81,7 +140,7 @@ async fn main() {
     });
     client.join("joxtacy".to_string()).unwrap();
     client
-        .say("joxtacy".to_string(), "henlo".to_string())
+        .say("joxtacy".to_string(), "Hello, frens! joxtacHi".to_string())
         .await
         .unwrap();
 
@@ -95,4 +154,5 @@ async fn main() {
     // explicitly close
     channel.close().await.unwrap();
     connection.close().await.unwrap();
+    Ok(())
 }
