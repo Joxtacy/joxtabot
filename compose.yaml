@@ -1,0 +1,108 @@
+networks:
+  joxtabot:
+    # driver: bridge
+
+volumes:
+  pgdata:
+
+secrets:
+  postgres-password:
+    file: postgres/password.txt
+
+services:
+  chat-display:
+    build:
+      context: ./chat-display
+      dockerfile: Dockerfile
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    environment:
+      - RABBIT_HOST=rabbit
+    ports:
+      - 127.0.0.1:3000:3000
+    networks:
+      - joxtabot
+    develop:
+      watch:
+        - action: sync
+          path: ./chat-display
+          target: /usr/src/app
+          ignore:
+            - node_modules
+        - action: rebuild
+          path: ./chat-display/package.json
+
+  chatter:
+    build:
+      context: ./chatter
+      dockerfile: Dockerfile
+    depends_on:
+      rabbit:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./chatter/token.json:/app/token.json
+    env_file:
+      - ./chatter/.env
+    environment:
+      - RABBIT_HOST=rabbit
+    networks:
+      - joxtabot
+    develop:
+      watch:
+        - action: sync
+          path: ./chatter/src
+          target: /app/src
+          ignore:
+            - target
+        - action: sync
+          path: ./chatter/.env
+          target: /app/.env
+          ignore:
+            - target
+        - action: sync
+          path: ./chatter/migrations
+          target: /app/migrations
+          ignore:
+            - target
+        - action: rebuild
+          path: ./chatter/Cargo.lock
+          ignore:
+            - target/
+
+  rabbit:
+    image: rabbitmq:3-management-alpine
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    ports:
+      - 127.0.0.1:5672:5672
+      - 127.0.0.1:15672:15672
+    networks:
+      - joxtabot
+
+  postgres:
+    image: postgres
+    restart: always
+    user: postgres
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    secrets:
+      - postgres-password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-password
+    healthcheck:
+      test: [ "CMD", "pg_isready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 127.0.0.1:5433:5432
+    networks:
+      - joxtabot
