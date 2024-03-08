@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n              SELECT access_token, refresh_token, created_at, expires_at FROM tokens\n              WHERE name = 'twitch_chat';\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "access_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "refresh_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2eadaa9c3ff62b0f88340c28d47d9a92ef66a384a1b02dabcb87d45f6726e3f8"
+}

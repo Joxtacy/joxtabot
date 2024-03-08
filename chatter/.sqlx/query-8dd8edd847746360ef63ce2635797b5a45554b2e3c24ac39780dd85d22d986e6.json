@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE tokens SET access_token = $1, refresh_token = $2, created_at = $3, expires_at = $4\n        WHERE \"name\" = 'twitch_chat'\n        RETURNING access_token, refresh_token, created_at, expires_at;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "access_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "refresh_token",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "expires_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "8dd8edd847746360ef63ce2635797b5a45554b2e3c24ac39780dd85d22d986e6"
+}

@@ -1,0 +1,1 @@
+ALTER TABLE tokens ALTER COLUMN expires_at SET NOT NULL;

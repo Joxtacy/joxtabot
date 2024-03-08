@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::env;
 
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
@@ -7,8 +7,7 @@ use amqprs::{
     BasicProperties,
 };
 use async_trait::async_trait;
-use chrono::DateTime;
-use serde::{Deserialize, Serialize};
+use sqlx::{prelude::FromRow, PgPool};
 use tokio::time;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use twitch_irc::{
@@ -17,40 +16,42 @@ use twitch_irc::{
     ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
-struct CustomTokenStorage {
+#[derive(Debug, FromRow)]
+struct Token {
     pub access_token: String,
     pub refresh_token: String,
-    pub created_at: String,
-    pub expires_at: Option<String>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+#[derive(Debug)]
+struct PostgresTokenStorage {
+    pool: PgPool,
 }
 
 #[async_trait]
-impl TokenStorage for CustomTokenStorage {
+impl TokenStorage for PostgresTokenStorage {
     type LoadError = std::io::Error; // or some other error
     type UpdateError = std::io::Error;
 
     async fn load_token(&mut self) -> Result<UserAccessToken, Self::LoadError> {
         // Load the currently stored token from storage
-        let contents = fs::read_to_string("token.json")?;
-        let storage = serde_json::from_str::<CustomTokenStorage>(&contents)?;
-        let expires_at = match &storage.expires_at {
-            Some(expires_at) => {
-                let expires_at = DateTime::parse_from_str(expires_at, "%+");
-                let expires_at = expires_at.unwrap().to_utc();
+        let rec: Token = sqlx::query_as!(
+            Token,
+            r#"
+                SELECT access_token, refresh_token, created_at, expires_at FROM tokens
+                WHERE name = 'twitch_chat';
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
 
-                Some(expires_at)
-            }
-            None => None,
-        };
-
-        let created_at = DateTime::parse_from_str(&storage.created_at, "%+");
-        let created_at = created_at.unwrap().to_utc();
         let token = UserAccessToken {
-            access_token: storage.access_token.clone(),
-            refresh_token: storage.refresh_token.clone(),
-            created_at,
-            expires_at,
+            access_token: rec.access_token,
+            refresh_token: rec.refresh_token,
+            created_at: rec.created_at,
+            expires_at: rec.expires_at,
         };
 
         Ok(token)
@@ -60,8 +61,21 @@ impl TokenStorage for CustomTokenStorage {
         // Called after the token was updated successfully, to save the new token.
         // After `update_token()` completes, the `load_token()` method should then return
         // that token for future invocations
-        let contents = serde_json::to_string(&token)?;
-        fs::write("token.json", contents)?;
+
+        sqlx::query!(
+            r#"
+                UPDATE tokens SET access_token = $1, refresh_token = $2, created_at = $3, expires_at = $4
+                WHERE "name" = 'twitch_chat'
+                RETURNING access_token, refresh_token, created_at, expires_at;
+            "#,
+            &token.access_token,
+            &token.refresh_token,
+            &token.created_at,
+            token.expires_at
+        )
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
 
         Ok(())
     }
@@ -77,17 +91,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_init()
         .ok();
 
+    let pool = PgPool::connect(&env::var("POSTGRES_URL")?).await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
+
+    let token_storage = PostgresTokenStorage { pool };
+
     let rabbit_host = env::var("RABBIT_HOST").unwrap_or("localhost".to_string());
     let client_id = env::var("CLIENT_ID").unwrap_or("".to_string());
     let client_secret = env::var("CLIENT_SECRET").unwrap_or("".to_string());
-    let storage = fs::read_to_string("token.json").unwrap();
-    let storage = serde_json::from_str::<CustomTokenStorage>(&storage).unwrap();
 
-    let credentials = RefreshingLoginCredentials::init(client_id, client_secret, storage);
+    let credentials = RefreshingLoginCredentials::init(client_id, client_secret, token_storage);
     let config = ClientConfig::new_simple(credentials);
     let (mut incoming_messages, client) = TwitchIRCClient::<
         SecureTCPTransport,
-        RefreshingLoginCredentials<CustomTokenStorage>,
+        RefreshingLoginCredentials<PostgresTokenStorage>,
     >::new(config);
 
     // open a connection to RabbitMQ server
