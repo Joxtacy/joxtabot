@@ -39,8 +39,8 @@ impl TokenStorage for PostgresTokenStorage {
         let rec: Token = sqlx::query_as!(
             Token,
             r#"
-                SELECT access_token, refresh_token, created_at, expires_at FROM tokens
-                WHERE name = 'twitch_chat';
+SELECT access_token, refresh_token, created_at, expires_at FROM tokens
+WHERE name = 'twitch_chat';
             "#,
         )
         .fetch_one(&self.pool)
@@ -64,9 +64,9 @@ impl TokenStorage for PostgresTokenStorage {
 
         sqlx::query!(
             r#"
-                UPDATE tokens SET access_token = $1, refresh_token = $2, created_at = $3, expires_at = $4
-                WHERE "name" = 'twitch_chat'
-                RETURNING access_token, refresh_token, created_at, expires_at;
+UPDATE tokens SET access_token = $1, refresh_token = $2, created_at = $3, expires_at = $4
+WHERE "name" = 'twitch_chat'
+RETURNING access_token, refresh_token, created_at, expires_at;
             "#,
             &token.access_token,
             &token.refresh_token,
