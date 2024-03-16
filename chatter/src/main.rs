@@ -86,6 +86,7 @@ RETURNING access_token, refresh_token, created_at, expires_at;
 struct RabbitMessage {
     message: String,
     sender: String,
+    color: Option<String>,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
@@ -152,6 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let message = RabbitMessage {
                         message: msg.message_text,
                         sender: msg.sender.name,
+                        color: msg.name_color.map(|c| c.to_string()),
                     };
                     let message = serde_json::to_string::<RabbitMessage>(&message)
                         .unwrap()
