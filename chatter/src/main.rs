@@ -7,6 +7,7 @@ use amqprs::{
     BasicProperties,
 };
 use async_trait::async_trait;
+use serde::Serialize;
 use sqlx::{prelude::FromRow, PgPool};
 use tokio::time;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -81,6 +82,12 @@ RETURNING access_token, refresh_token, created_at, expires_at;
     }
 }
 
+#[derive(Debug, Serialize)]
+struct RabbitMessage {
+    message: String,
+    sender: String,
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // construct a subscriber that prints formatted traces to stdout
@@ -142,10 +149,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Received message: {:?}", message);
             match message {
                 ServerMessage::Privmsg(msg) => {
+                    let message = RabbitMessage {
+                        message: msg.message_text,
+                        sender: msg.sender.name,
+                    };
+                    let message = serde_json::to_string::<RabbitMessage>(&message)
+                        .unwrap()
+                        .into_bytes();
+
                     channel_clone
                         .basic_publish(
                             BasicProperties::default(),
-                            format!("{}: {}", msg.sender.name, msg.message_text).into_bytes(),
+                            message,
                             BasicPublishArguments::new("", &queue_name),
                         )
                         .await
