@@ -6,6 +6,7 @@ import { logger } from "hono/logger";
 import { streamSSE } from "hono/streaming";
 import ChatMessage from "./components/chat-message";
 import Main from "./components/main";
+import type { RabbitMessage } from "./types";
 
 let id = 0;
 
@@ -44,13 +45,18 @@ app.get("/chat", async (c) => {
 		const channel = c.get("channel");
 		const consumerTag = await channel.consume(
 			"chat",
-			async (message: amqplib.ConsumeMessage | null) => {
-				console.log("Message received:", message?.content.toString());
+			async (message) => {
+				console.log(
+					"Message received:",
+					JSON.parse(message?.content.toString() || ""),
+				);
+				const msg: RabbitMessage = JSON.parse(
+					message?.content.toString() || '{"sender":null,"message":null}',
+				);
+				console.log("Message received:", msg);
 				await stream.writeSSE({
 					event: "chat",
-					data: ChatMessage({
-						message: message?.content.toString() || "",
-					}).toString(),
+					data: ChatMessage({ ...msg }).toString(),
 				});
 			},
 			{ noAck: true },
@@ -66,7 +72,10 @@ app.get("/chat", async (c) => {
 		while (connected) {
 			await stream.writeSSE({
 				event: "chat",
-				data: ChatMessage({ message: `id: ${id++}` }).toString(),
+				data: ChatMessage({
+					message: `id -> ${id++}`,
+					sender: "system",
+				}).toString(),
 				// id: String(id),
 			});
 			await stream.sleep(1000);
