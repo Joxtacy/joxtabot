@@ -27,6 +27,14 @@ body {
 	transition: opacity ease-out 1s;
 }
 
+.sender {
+	font-weight: 700;
+}
+
+.message {
+	font-weight: 400;
+}
+
 .hidden {
 	opacity: 0;
 }
