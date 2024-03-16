@@ -1,6 +1,6 @@
 import type { FC } from "hono/jsx";
 
-const ChatMessage: FC<{ message: string; sender: string; }> = ({
+const ChatMessage: FC<{ message: string; sender: string }> = ({
 	message,
 	sender,
 }) => (

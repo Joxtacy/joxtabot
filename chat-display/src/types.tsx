@@ -1,8 +1,7 @@
 /**
-	* Message coming from RabbitMQ
-	*/
+ * Message coming from RabbitMQ
+ */
 export interface RabbitMessage {
 	message: string;
 	sender: string;
 }
-
