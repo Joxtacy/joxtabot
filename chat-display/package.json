@@ -1,12 +1,16 @@
 {
 	"scripts": {
-		"dev": "bun run --hot src/index.tsx"
+		"dev": "bun run --hot src/index.tsx",
+		"format": "biome format . --write",
+		"lint": "biome lint .",
+		"check": "biome check --apply ."
 	},
 	"dependencies": {
 		"amqplib": "^0.10.3",
 		"hono": "^4.0.4"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "1.6.1",
 		"@types/amqplib": "^0.10.4",
 		"@types/bun": "latest"
 	},
