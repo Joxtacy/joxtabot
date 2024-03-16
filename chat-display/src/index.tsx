@@ -2,7 +2,6 @@ import amqplib from "amqplib";
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { showRoutes } from "hono/dev";
-import type { FC } from "hono/jsx";
 import { logger } from "hono/logger";
 import { streamSSE } from "hono/streaming";
 import ChatMessage from "./components/chat-message";
