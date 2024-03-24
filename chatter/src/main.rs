@@ -7,7 +7,13 @@ use amqprs::{
     BasicProperties,
 };
 use async_trait::async_trait;
-use serde::Serialize;
+use fred::{
+    interfaces::{ClientLike, RedisJsonInterface},
+    types::{Builder, RedisConfig, SetOptions},
+    util::NONE,
+};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::{prelude::FromRow, PgPool};
 use tokio::time;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -89,6 +95,29 @@ struct RabbitMessage {
     color: Option<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct GlobalEmoteResponse {
+    data: Vec<GlobalEmote>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct GlobalEmote {
+    set_id: String,
+    versions: Vec<GlobalEmoteVersion>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct GlobalEmoteVersion {
+    id: String,
+    image_url_1x: String,
+    image_url_2x: String,
+    image_url_4x: String,
+    title: String,
+    description: String,
+    click_action: Option<String>,
+    click_url: Option<String>,
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // construct a subscriber that prints formatted traces to stdout
@@ -99,23 +128,80 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .try_init()
         .ok();
 
-    let pool = PgPool::connect(&env::var("POSTGRES_URL")?).await?;
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    let postgres_pool = PgPool::connect(&env::var("POSTGRES_URL")?).await?;
+    sqlx::migrate!("./migrations").run(&postgres_pool).await?;
 
-    let token_storage = PostgresTokenStorage { pool };
+    let redis_host = env::var("REDIS_URL")?;
+    let redis_config = RedisConfig::from_url(&redis_host)?;
+    let redis_pool = Builder::from_config(redis_config).build_pool(5)?;
+    redis_pool.init().await?;
+
+    struct AccessTokenResponse {
+        access_token: String,
+    }
+    tracing::info!("Fetching access token");
+    let access_token = sqlx::query_as!(
+        AccessTokenResponse,
+        r#"
+SELECT access_token FROM tokens
+WHERE name = 'twitch_chat';
+            "#,
+    )
+    .fetch_one(&postgres_pool)
+    .await
+    .unwrap();
+
+    let token_storage = PostgresTokenStorage {
+        pool: postgres_pool,
+    };
 
     let rabbit_host = env::var("RABBIT_HOST").unwrap_or("localhost".to_string());
     let client_id = env::var("CLIENT_ID").unwrap_or("".to_string());
     let client_secret = env::var("CLIENT_SECRET").unwrap_or("".to_string());
 
-    let credentials = RefreshingLoginCredentials::init(client_id, client_secret, token_storage);
+    tracing::info!("Create Twitch IRC client");
+    let credentials =
+        RefreshingLoginCredentials::init(client_id.clone(), client_secret, token_storage);
     let config = ClientConfig::new_simple(credentials);
     let (mut incoming_messages, client) = TwitchIRCClient::<
         SecureTCPTransport,
         RefreshingLoginCredentials<PostgresTokenStorage>,
     >::new(config);
 
+    let global_emotes: Option<Value> = redis_pool
+        .json_get("global_emotes", NONE, NONE, NONE, "$")
+        .await
+        .unwrap_or(None);
+
+    if let None = global_emotes {
+        let reqwest_client = reqwest::Client::new();
+        tracing::info!("Sending request to get global badges");
+        let response = reqwest_client
+            .get("https://api.twitch.tv/helix/chat/badges/global")
+            .bearer_auth(&access_token.access_token)
+            .header("Client-Id", &client_id)
+            .send()
+            .await
+            .unwrap()
+            .json::<GlobalEmoteResponse>()
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .json_set(
+                "global_emotes",
+                "$",
+                serde_json::to_string(&response.data).unwrap(),
+                Some(SetOptions::NX),
+            )
+            .await
+            .unwrap();
+        // to set expire on a key
+        // let _: () = redis_pool.expire("global_emotes", 300).await.unwrap();
+    }
+
     // open a connection to RabbitMQ server
+    tracing::info!("Connect to RabbitMQ");
     let connection = Connection::open(&OpenConnectionArguments::new(
         &rabbit_host,
         5672,
@@ -147,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let join_handle = tokio::spawn(async move {
         while let Some(message) = incoming_messages.recv().await {
-            println!("Received message: {:?}", message);
+            tracing::debug!("Received message: {:?}", message);
             match message {
                 ServerMessage::Privmsg(msg) => {
                     let message = RabbitMessage {
