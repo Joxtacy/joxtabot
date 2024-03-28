@@ -1,4 +1,4 @@
-use std::env;
+use std::{collections::BTreeMap, env};
 
 use amqprs::{
     callbacks::{DefaultChannelCallback, DefaultConnectionCallback},
@@ -89,10 +89,19 @@ RETURNING access_token, refresh_token, created_at, expires_at;
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Badge {
+    name: String,
+    version: String,
+    icon_url: String,
+}
+
+#[derive(Debug, Serialize)]
 struct RabbitMessage {
     message: String,
     sender: String,
     color: Option<String>,
+    badges: Vec<Badge>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -173,8 +182,8 @@ WHERE name = 'twitch_chat';
         .await
         .unwrap_or(None);
 
+    let reqwest_client = reqwest::Client::new();
     if let None = global_badges {
-        let reqwest_client = reqwest::Client::new();
         tracing::info!("Sending request to get global badges");
         let response = reqwest_client
             .get("https://api.twitch.tv/helix/chat/badges/global")
@@ -198,6 +207,38 @@ WHERE name = 'twitch_chat';
             .unwrap();
         // to set expire on a key
         // let _: () = redis_pool.expire("global_badges", 300).await.unwrap();
+    }
+
+    let channel_badges: Option<Value> = redis_pool
+        .json_get("channel_badges", NONE, NONE, NONE, "$")
+        .await
+        .unwrap_or(None);
+
+    if let None = channel_badges {
+        tracing::info!("Sending request to get channel badges");
+        let response = reqwest_client
+            .get("https://api.twitch.tv/helix/chat/badges")
+            .query(&[("broadcaster_id", "54605357")])
+            .bearer_auth(&access_token.access_token)
+            .header("Client-Id", &client_id)
+            .send()
+            .await
+            .unwrap()
+            .json::<GlobalBadgeResponse>()
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .json_set(
+                "channel_badges",
+                "$",
+                serde_json::to_string(&response.data).unwrap(),
+                Some(SetOptions::NX),
+            )
+            .await
+            .unwrap();
+        // to set expire on a key
+        // let _: () = redis_pool.expire("channel_badges", 300).await.unwrap();
     }
 
     // open a connection to RabbitMQ server
@@ -236,10 +277,75 @@ WHERE name = 'twitch_chat';
             tracing::debug!("Received message: {:?}", message);
             match message {
                 ServerMessage::Privmsg(msg) => {
+                    let global_badges: Value = redis_pool
+                        .json_get("global_badges", NONE, NONE, NONE, "$")
+                        .await
+                        .unwrap();
+                    let global_badges: Vec<Vec<GlobalBadge>> =
+                        serde_json::from_value(global_badges).unwrap();
+
+                    let channel_badges: Value = redis_pool
+                        .json_get("channel_badges", NONE, NONE, NONE, "$")
+                        .await
+                        .unwrap();
+                    let channel_badges: Vec<Vec<GlobalBadge>> =
+                        serde_json::from_value(channel_badges).unwrap();
+
+                    let my_badges = msg
+                        .badges
+                        .iter()
+                        .map(|badge| (badge.name.clone(), badge))
+                        .collect::<BTreeMap<_, _>>();
+
+                    let my_global_badges: Vec<&GlobalBadge> = global_badges
+                        .iter()
+                        .flatten()
+                        .filter(|global_badge| {
+                            my_badges
+                                .keys()
+                                .collect::<Vec<_>>()
+                                .contains(&&global_badge.set_id)
+                        })
+                        .collect();
+
+                    let mapped_global_badges: Vec<Badge> = my_global_badges
+                        .iter()
+                        .map(|global_badge| {
+                            let my_badge = my_badges
+                                .get(&global_badge.set_id)
+                                .expect("Should have the badge we're looking for");
+
+                            let badge_version = if global_badge.set_id == "subscriber" {
+                                let subscriber_badge = channel_badges
+                                    .iter()
+                                    .flatten()
+                                    .find(|badge| badge.set_id == "subscriber")
+                                    .expect("Should have subscriber badge if we made it here");
+                                subscriber_badge
+                                    .versions
+                                    .iter()
+                                    .find(|version| version.id == my_badge.version)
+                                    .expect("Should have a matching version")
+                            } else {
+                                global_badge
+                                    .versions
+                                    .iter()
+                                    .find(|version| version.id == my_badge.version)
+                                    .expect("Should have a matching version")
+                            };
+                            Badge {
+                                name: global_badge.set_id.clone(),
+                                version: badge_version.id.clone(),
+                                icon_url: badge_version.image_url_1x.clone(),
+                            }
+                        })
+                        .collect();
+
                     let message = RabbitMessage {
                         message: msg.message_text,
                         sender: msg.sender.name,
                         color: msg.name_color.map(|c| c.to_string()),
+                        badges: mapped_global_badges,
                     };
                     let message = serde_json::to_string::<RabbitMessage>(&message)
                         .unwrap()
