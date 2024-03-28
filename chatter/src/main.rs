@@ -96,18 +96,18 @@ struct RabbitMessage {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalEmoteResponse {
-    data: Vec<GlobalEmote>,
+struct GlobalBadgeResponse {
+    data: Vec<GlobalBadge>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalEmote {
+struct GlobalBadge {
     set_id: String,
-    versions: Vec<GlobalEmoteVersion>,
+    versions: Vec<GlobalBadgeVersion>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalEmoteVersion {
+struct GlobalBadgeVersion {
     id: String,
     image_url_1x: String,
     image_url_2x: String,
@@ -168,12 +168,12 @@ WHERE name = 'twitch_chat';
         RefreshingLoginCredentials<PostgresTokenStorage>,
     >::new(config);
 
-    let global_emotes: Option<Value> = redis_pool
-        .json_get("global_emotes", NONE, NONE, NONE, "$")
+    let global_badges: Option<Value> = redis_pool
+        .json_get("global_badges", NONE, NONE, NONE, "$")
         .await
         .unwrap_or(None);
 
-    if let None = global_emotes {
+    if let None = global_badges {
         let reqwest_client = reqwest::Client::new();
         tracing::info!("Sending request to get global badges");
         let response = reqwest_client
@@ -183,13 +183,13 @@ WHERE name = 'twitch_chat';
             .send()
             .await
             .unwrap()
-            .json::<GlobalEmoteResponse>()
+            .json::<GlobalBadgeResponse>()
             .await
             .unwrap();
 
         let _: () = redis_pool
             .json_set(
-                "global_emotes",
+                "global_badges",
                 "$",
                 serde_json::to_string(&response.data).unwrap(),
                 Some(SetOptions::NX),
@@ -197,7 +197,7 @@ WHERE name = 'twitch_chat';
             .await
             .unwrap();
         // to set expire on a key
-        // let _: () = redis_pool.expire("global_emotes", 300).await.unwrap();
+        // let _: () = redis_pool.expire("global_badges", 300).await.unwrap();
     }
 
     // open a connection to RabbitMQ server
