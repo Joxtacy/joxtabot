@@ -105,18 +105,18 @@ struct RabbitMessage {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalBadgeResponse {
-    data: Vec<GlobalBadge>,
+struct TwitchBadgeResponse {
+    data: Vec<TwitchBadge>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalBadge {
+struct TwitchBadge {
     set_id: String,
-    versions: Vec<GlobalBadgeVersion>,
+    versions: Vec<TwitchBadgeVersion>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct GlobalBadgeVersion {
+struct TwitchBadgeVersion {
     id: String,
     image_url_1x: String,
     image_url_2x: String,
@@ -192,7 +192,7 @@ WHERE name = 'twitch_chat';
             .send()
             .await
             .unwrap()
-            .json::<GlobalBadgeResponse>()
+            .json::<TwitchBadgeResponse>()
             .await
             .unwrap();
 
@@ -224,7 +224,7 @@ WHERE name = 'twitch_chat';
             .send()
             .await
             .unwrap()
-            .json::<GlobalBadgeResponse>()
+            .json::<TwitchBadgeResponse>()
             .await
             .unwrap();
 
@@ -281,14 +281,14 @@ WHERE name = 'twitch_chat';
                         .json_get("global_badges", NONE, NONE, NONE, "$")
                         .await
                         .unwrap();
-                    let global_badges: Vec<Vec<GlobalBadge>> =
+                    let global_badges: Vec<Vec<TwitchBadge>> =
                         serde_json::from_value(global_badges).unwrap();
 
                     let channel_badges: Value = redis_pool
                         .json_get("channel_badges", NONE, NONE, NONE, "$")
                         .await
                         .unwrap();
-                    let channel_badges: Vec<Vec<GlobalBadge>> =
+                    let channel_badges: Vec<Vec<TwitchBadge>> =
                         serde_json::from_value(channel_badges).unwrap();
 
                     let my_badges = msg
@@ -297,7 +297,7 @@ WHERE name = 'twitch_chat';
                         .map(|badge| (badge.name.clone(), badge))
                         .collect::<BTreeMap<_, _>>();
 
-                    let my_global_badges: Vec<&GlobalBadge> = global_badges
+                    let my_global_badges: Vec<&TwitchBadge> = global_badges
                         .iter()
                         .flatten()
                         .filter(|global_badge| {
