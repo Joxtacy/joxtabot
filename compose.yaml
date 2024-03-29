@@ -4,6 +4,7 @@ networks:
 
 volumes:
   pgdata:
+  redisdata:
 
 secrets:
   postgres-password:
@@ -44,6 +45,8 @@ services:
         condition: service_healthy
     volumes:
       - ./chatter/token.json:/app/token.json
+      redis:
+        condition: service_healthy
     env_file:
       - ./chatter/.env
     environment:
@@ -104,5 +107,23 @@ services:
       retries: 5
     ports:
       - 127.0.0.1:5433:5432
+    networks:
+      - joxtabot
+
+  redis:
+    image: redis/redis-stack:latest
+    restart: always
+    environment:
+      REDIS_ARGS: --save 60 1 --loglevel warning
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli","ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 127.0.0.1:6379:6379
+      - 127.0.0.1:8001:8001
     networks:
       - joxtabot
