@@ -25,6 +25,8 @@ body {
 
 .chat-message {
 	transition: opacity ease-out 1s;
+	display: flex;
+	align-items: center;
 }
 
 .sender {

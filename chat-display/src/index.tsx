@@ -46,10 +46,6 @@ app.get("/chat", async (c) => {
 		const consumerTag = await channel.consume(
 			"chat",
 			async (message) => {
-				console.log(
-					"Message received:",
-					JSON.parse(message?.content.toString() || ""),
-				);
 				const msg: RabbitMessage = JSON.parse(
 					message?.content.toString() || '{"sender":null,"message":null}',
 				);
@@ -75,6 +71,7 @@ app.get("/chat", async (c) => {
 				data: ChatMessage({
 					message: `id -> ${id++}`,
 					sender: "system",
+					badges: [],
 				}).toString(),
 				// id: String(id),
 			});
