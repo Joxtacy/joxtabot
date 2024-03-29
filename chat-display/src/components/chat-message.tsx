@@ -15,7 +15,7 @@ const ChatMessage: FC<RabbitMessage> = ({
 			<img src={iconUrl} alt={name} />
 		))}
 		<span class="sender" style={{ color }}>{sender}</span>
-		<span class="divider">: </span>
+		<span class="divider">:&#20;</span>
 		<span class="message">{message}</span>
 	</div>
 );
