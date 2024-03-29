@@ -43,14 +43,13 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    volumes:
-      - ./chatter/token.json:/app/token.json
       redis:
         condition: service_healthy
     env_file:
       - ./chatter/.env
     environment:
       - RABBIT_HOST=rabbit
+      - RUST_LOG=info
     networks:
       - joxtabot
     develop:
