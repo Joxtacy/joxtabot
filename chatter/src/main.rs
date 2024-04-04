@@ -23,6 +23,8 @@ use twitch_irc::{
     ClientConfig, SecureTCPTransport, TwitchIRCClient,
 };
 
+const BROADCASTER_ID: &str = "54605357";
+
 #[derive(Debug, FromRow)]
 struct Token {
     pub access_token: String,
@@ -252,7 +254,7 @@ WHERE name = 'twitch_chat';
         tracing::info!("Sending request to get channel badges");
         let response = reqwest_client
             .get("https://api.twitch.tv/helix/chat/badges")
-            .query(&[("broadcaster_id", "54605357")])
+            .query(&[("broadcaster_id", BROADCASTER_ID)])
             .bearer_auth(&access_token.access_token)
             .header("Client-Id", &client_id)
             .send()
@@ -318,7 +320,7 @@ WHERE name = 'twitch_chat';
     if let None = channel_emotes {
         let response = reqwest_client
             .get("https://api.twitch.tv/helix/chat/emotes")
-            .query(&[("broadcaster_id", "54605357")])
+            .query(&[("broadcaster_id", BROADCASTER_ID)])
             .bearer_auth(&access_token.access_token)
             .header("Client-Id", &client_id)
             .send()
