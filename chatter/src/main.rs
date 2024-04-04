@@ -8,7 +8,7 @@ use amqprs::{
 };
 use async_trait::async_trait;
 use fred::{
-    interfaces::{ClientLike, RedisJsonInterface},
+    interfaces::{ClientLike, KeysInterface, RedisJsonInterface},
     types::{Builder, RedisConfig, SetOptions},
     util::NONE,
 };
@@ -97,11 +97,22 @@ struct Badge {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Emote {
+    id: String,
+    char_range: (usize, usize),
+    code: String,
+    url_template: String,
+    format: String,
+}
+
+#[derive(Debug, Serialize)]
 struct RabbitMessage {
     message: String,
     sender: String,
     color: Option<String>,
     badges: Vec<Badge>,
+    emotes: Vec<Emote>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -125,6 +136,29 @@ struct TwitchBadgeVersion {
     description: String,
     click_action: Option<String>,
     click_url: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct TwitchEmoteResponse {
+    data: Vec<TwitchEmote>,
+    template: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct TwitchEmote {
+    id: String,
+    name: String,
+    images: TwitchImage,
+    format: Vec<String>,
+    scale: Vec<String>,
+    theme_mode: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct TwitchImage {
+    url_1x: String,
+    url_2x: String,
+    url_4x: String,
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
@@ -241,6 +275,41 @@ WHERE name = 'twitch_chat';
         // let _: () = redis_pool.expire("channel_badges", 300).await.unwrap();
     }
 
+    let global_emotes: Option<Value> = redis_pool
+        .json_get("global_emotes", NONE, NONE, NONE, "$")
+        .await
+        .unwrap_or(None);
+
+    if let None = global_emotes {
+        let response = reqwest_client
+            .get("https://api.twitch.tv/helix/chat/emotes/global")
+            .bearer_auth(&access_token.access_token)
+            .header("Client-Id", &client_id)
+            .send()
+            .await
+            .unwrap()
+            .json::<TwitchEmoteResponse>()
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .set("emote_template", response.template, None, None, false)
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .json_set(
+                "global_emotes",
+                "$",
+                serde_json::to_string(&response.data).unwrap(),
+                Some(SetOptions::NX),
+            )
+            .await
+            .unwrap();
+        // to set expire on a key
+        // let _: () = redis_pool.expire("global_emotes", 300).await.unwrap();
+    }
+
     // open a connection to RabbitMQ server
     tracing::info!("Connect to RabbitMQ");
     let connection = Connection::open(&OpenConnectionArguments::new(
@@ -290,6 +359,18 @@ WHERE name = 'twitch_chat';
                         .unwrap();
                     let channel_badges: Vec<Vec<TwitchBadge>> =
                         serde_json::from_value(channel_badges).unwrap();
+
+                    let emote_template: String = redis_pool
+                        .get("emote_template")
+                        .await
+                        .expect("Should have the emote_template set");
+
+                    let global_emotes: Value = redis_pool
+                        .json_get("global_emotes", NONE, NONE, NONE, "$")
+                        .await
+                        .unwrap();
+                    let global_emotes: Vec<Vec<TwitchEmote>> =
+                        serde_json::from_value(global_emotes).unwrap();
 
                     let my_badges = msg
                         .badges
@@ -341,11 +422,40 @@ WHERE name = 'twitch_chat';
                         })
                         .collect();
 
+                    let emotes: Vec<Emote> = msg
+                        .emotes
+                        .iter()
+                        .map(|emote| {
+                            let format = if let Some(global_emote) = global_emotes
+                                .iter()
+                                .flatten()
+                                .find(|global_emote| global_emote.id == emote.id)
+                            {
+                                global_emote
+                                    .format
+                                    .iter()
+                                    .find(|format| *format == "animated")
+                                    .unwrap_or(&String::from("static"))
+                                    .to_owned()
+                            } else {
+                                "static".to_owned()
+                            };
+                            Emote {
+                                id: emote.id.clone(),
+                                char_range: (emote.char_range.start, emote.char_range.end),
+                                code: emote.code.clone(),
+                                url_template: emote_template.clone(),
+                                format,
+                            }
+                        })
+                        .collect();
+
                     let message = RabbitMessage {
                         message: msg.message_text,
                         sender: msg.sender.name,
                         color: msg.name_color.map(|c| c.to_string()),
                         badges: mapped_global_badges,
+                        emotes,
                     };
                     let message = serde_json::to_string::<RabbitMessage>(&message)
                         .unwrap()
