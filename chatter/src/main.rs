@@ -310,6 +310,42 @@ WHERE name = 'twitch_chat';
         // let _: () = redis_pool.expire("global_emotes", 300).await.unwrap();
     }
 
+    let channel_emotes: Option<Value> = redis_pool
+        .json_get("channel_emotes", NONE, NONE, NONE, "$")
+        .await
+        .unwrap_or(None);
+
+    if let None = channel_emotes {
+        let response = reqwest_client
+            .get("https://api.twitch.tv/helix/chat/emotes")
+            .query(&[("broadcaster_id", "54605357")])
+            .bearer_auth(&access_token.access_token)
+            .header("Client-Id", &client_id)
+            .send()
+            .await
+            .unwrap()
+            .json::<TwitchEmoteResponse>()
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .set("emote_template", response.template, None, None, false)
+            .await
+            .unwrap();
+
+        let _: () = redis_pool
+            .json_set(
+                "channel_emotes",
+                "$",
+                serde_json::to_string(&response.data).unwrap(),
+                Some(SetOptions::NX),
+            )
+            .await
+            .unwrap();
+        // to set expire on a key
+        // let _: () = redis_pool.expire("channel_emotes", 300).await.unwrap();
+    }
+
     // open a connection to RabbitMQ server
     tracing::info!("Connect to RabbitMQ");
     let connection = Connection::open(&OpenConnectionArguments::new(
@@ -372,6 +408,19 @@ WHERE name = 'twitch_chat';
                     let global_emotes: Vec<Vec<TwitchEmote>> =
                         serde_json::from_value(global_emotes).unwrap();
 
+                    let channel_emotes: Value = redis_pool
+                        .json_get("channel_emotes", NONE, NONE, NONE, "$")
+                        .await
+                        .unwrap();
+                    let channel_emotes: Vec<Vec<TwitchEmote>> =
+                        serde_json::from_value(channel_emotes).unwrap();
+
+                    let all_emotes: Vec<&TwitchEmote> = channel_emotes
+                        .iter()
+                        .flatten()
+                        .chain(global_emotes.iter().flatten())
+                        .collect();
+
                     let my_badges = msg
                         .badges
                         .iter()
@@ -389,6 +438,8 @@ WHERE name = 'twitch_chat';
                         })
                         .collect();
 
+                    // Maps global subscriber badges to match the correct version of the channel
+                    // badge.
                     let mapped_global_badges: Vec<Badge> = my_global_badges
                         .iter()
                         .map(|global_badge| {
@@ -425,13 +476,11 @@ WHERE name = 'twitch_chat';
                     let emotes: Vec<Emote> = msg
                         .emotes
                         .iter()
-                        .map(|emote| {
-                            let format = if let Some(global_emote) = global_emotes
-                                .iter()
-                                .flatten()
-                                .find(|global_emote| global_emote.id == emote.id)
+                        .map(|message_emote| {
+                            let format = if let Some(emote) =
+                                all_emotes.iter().find(|emote| emote.id == message_emote.id)
                             {
-                                global_emote
+                                emote
                                     .format
                                     .iter()
                                     .find(|format| *format == "animated")
@@ -441,9 +490,12 @@ WHERE name = 'twitch_chat';
                                 "static".to_owned()
                             };
                             Emote {
-                                id: emote.id.clone(),
-                                char_range: (emote.char_range.start, emote.char_range.end),
-                                code: emote.code.clone(),
+                                id: message_emote.id.clone(),
+                                char_range: (
+                                    message_emote.char_range.start,
+                                    message_emote.char_range.end,
+                                ),
+                                code: message_emote.code.clone(),
                                 url_template: emote_template.clone(),
                                 format,
                             }
