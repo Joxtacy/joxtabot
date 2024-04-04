@@ -6,6 +6,7 @@ export interface RabbitMessage {
 	sender: string;
 	color?: string;
 	badges: Badge[];
+	emotes: Emote[];
 }
 
 /**
@@ -15,4 +16,15 @@ export interface Badge {
 	name: string;
 	iconUrl: string;
 	version: string;
+}
+
+/**
+ * Emote information on a Twitch message
+ */
+export interface Emote {
+	id: string;
+	code: string;
+	charRange: number[];
+	urlTemplate: string;
+	format: string;
 }

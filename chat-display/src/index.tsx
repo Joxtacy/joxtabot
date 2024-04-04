@@ -72,6 +72,7 @@ app.get("/chat", async (c) => {
 					message: `id -> ${id++}`,
 					sender: "system",
 					badges: [],
+					emotes: [],
 				}).toString(),
 				// id: String(id),
 			});
