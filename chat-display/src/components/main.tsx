@@ -8,12 +8,13 @@ const Main: FC = () => {
 				<meta charset="UTF-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<script
-					src="https://unpkg.com/htmx.org@1.9.10"
-					integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
+					src="https://unpkg.com/htmx.org@2.0.0"
+					integrity="sha384-wS5l5IKJBvK6sPTKa2WZ1js3d947pvWXbPJ1OmWfEuxLgeHcEbjUUA5i9V5ZkpCw"
 					crossorigin="anonymous"
-				/>
+				>
+				</script>
 				{/* Server Sent Events plugin */}
-				<script src="https://unpkg.com/htmx.org/dist/ext/sse.js" />
+				<script src="https://unpkg.com/htmx-ext-sse@2.0.0/sse.js" />
 				{/* _hyperscript */}
 				<script src="https://unpkg.com/hyperscript.org@0.9.12" />
 
