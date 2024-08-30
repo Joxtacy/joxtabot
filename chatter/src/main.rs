@@ -219,7 +219,7 @@ WHERE name = 'twitch_chat';
         .unwrap_or(None);
 
     let reqwest_client = reqwest::Client::new();
-    if let None = global_badges {
+    if global_badges.is_none() {
         tracing::info!("Sending request to get global badges");
         let response = reqwest_client
             .get("https://api.twitch.tv/helix/chat/badges/global")
@@ -250,7 +250,7 @@ WHERE name = 'twitch_chat';
         .await
         .unwrap_or(None);
 
-    if let None = channel_badges {
+    if channel_badges.is_none() {
         tracing::info!("Sending request to get channel badges");
         let response = reqwest_client
             .get("https://api.twitch.tv/helix/chat/badges")
@@ -382,149 +382,152 @@ WHERE name = 'twitch_chat';
     let join_handle = tokio::spawn(async move {
         while let Some(message) = incoming_messages.recv().await {
             tracing::debug!("Received message: {:?}", message);
-            match message {
-                ServerMessage::Privmsg(msg) => {
-                    let global_badges: Value = redis_pool
-                        .json_get("global_badges", NONE, NONE, NONE, "$")
-                        .await
-                        .unwrap();
-                    let global_badges: Vec<Vec<TwitchBadge>> =
-                        serde_json::from_value(global_badges).unwrap();
+            if let ServerMessage::Privmsg(msg) = message {
+                let global_badges: Value = redis_pool
+                    .json_get("global_badges", NONE, NONE, NONE, "$")
+                    .await
+                    .unwrap();
+                let global_badges: Vec<Vec<TwitchBadge>> =
+                    serde_json::from_value(global_badges).unwrap();
 
-                    let channel_badges: Value = redis_pool
-                        .json_get("channel_badges", NONE, NONE, NONE, "$")
-                        .await
-                        .unwrap();
-                    let channel_badges: Vec<Vec<TwitchBadge>> =
-                        serde_json::from_value(channel_badges).unwrap();
+                let channel_badges: Value = redis_pool
+                    .json_get("channel_badges", NONE, NONE, NONE, "$")
+                    .await
+                    .unwrap();
+                let channel_badges: Vec<Vec<TwitchBadge>> =
+                    serde_json::from_value(channel_badges).unwrap();
 
-                    let emote_template: String = redis_pool
-                        .get("emote_template")
-                        .await
-                        .expect("Should have the emote_template set");
+                let emote_template: String = redis_pool
+                    .get("emote_template")
+                    .await
+                    .expect("Should have the emote_template set");
 
-                    let global_emotes: Value = redis_pool
-                        .json_get("global_emotes", NONE, NONE, NONE, "$")
-                        .await
-                        .unwrap();
-                    let global_emotes: Vec<Vec<TwitchEmote>> =
-                        serde_json::from_value(global_emotes).unwrap();
+                /*
+                let global_emotes: Value = redis_pool
+                    .json_get("global_emotes", NONE, NONE, NONE, "$")
+                    .await
+                    .unwrap();
+                let global_emotes: Vec<Vec<TwitchEmote>> =
+                    serde_json::from_value(global_emotes).unwrap();
 
-                    let channel_emotes: Value = redis_pool
-                        .json_get("channel_emotes", NONE, NONE, NONE, "$")
-                        .await
-                        .unwrap();
-                    let channel_emotes: Vec<Vec<TwitchEmote>> =
-                        serde_json::from_value(channel_emotes).unwrap();
+                let channel_emotes: Value = redis_pool
+                    .json_get("channel_emotes", NONE, NONE, NONE, "$")
+                    .await
+                    .unwrap();
+                let channel_emotes: Vec<Vec<TwitchEmote>> =
+                    serde_json::from_value(channel_emotes).unwrap();
+                */
 
-                    let all_emotes: Vec<&TwitchEmote> = channel_emotes
-                        .iter()
-                        .flatten()
-                        .chain(global_emotes.iter().flatten())
-                        .collect();
+                /*
+                let all_emotes: Vec<&TwitchEmote> = channel_emotes
+                    .iter()
+                    .flatten()
+                    .chain(global_emotes.iter().flatten())
+                    .collect();
+                */
 
-                    let my_badges = msg
-                        .badges
-                        .iter()
-                        .map(|badge| (badge.name.clone(), badge))
-                        .collect::<BTreeMap<_, _>>();
+                let my_badges = msg
+                    .badges
+                    .iter()
+                    .map(|badge| (badge.name.clone(), badge))
+                    .collect::<BTreeMap<_, _>>();
 
-                    let my_global_badges: Vec<&TwitchBadge> = global_badges
-                        .iter()
-                        .flatten()
-                        .filter(|global_badge| {
-                            my_badges
-                                .keys()
-                                .collect::<Vec<_>>()
-                                .contains(&&global_badge.set_id)
-                        })
-                        .collect();
+                let my_global_badges: Vec<&TwitchBadge> = global_badges
+                    .iter()
+                    .flatten()
+                    .filter(|global_badge| {
+                        my_badges
+                            .keys()
+                            .collect::<Vec<_>>()
+                            .contains(&&global_badge.set_id)
+                    })
+                    .collect();
 
-                    // Maps global subscriber badges to match the correct version of the channel
-                    // badge.
-                    let mapped_global_badges: Vec<Badge> = my_global_badges
-                        .iter()
-                        .map(|global_badge| {
-                            let my_badge = my_badges
-                                .get(&global_badge.set_id)
-                                .expect("Should have the badge we're looking for");
+                // Maps global subscriber badges to match the correct version of the channel
+                // badge.
+                let mapped_global_badges: Vec<Badge> = my_global_badges
+                    .iter()
+                    .map(|global_badge| {
+                        let my_badge = my_badges
+                            .get(&global_badge.set_id)
+                            .expect("Should have the badge we're looking for");
 
-                            let badge_version = if global_badge.set_id == "subscriber" {
-                                let subscriber_badge = channel_badges
-                                    .iter()
-                                    .flatten()
-                                    .find(|badge| badge.set_id == "subscriber")
-                                    .expect("Should have subscriber badge if we made it here");
-                                subscriber_badge
-                                    .versions
-                                    .iter()
-                                    .find(|version| version.id == my_badge.version)
-                                    .expect("Should have a matching version")
-                            } else {
-                                global_badge
-                                    .versions
-                                    .iter()
-                                    .find(|version| version.id == my_badge.version)
-                                    .expect("Should have a matching version")
-                            };
-                            Badge {
-                                name: global_badge.set_id.clone(),
-                                version: badge_version.id.clone(),
-                                icon_url: badge_version.image_url_1x.clone(),
-                            }
-                        })
-                        .collect();
+                        let badge_version = if global_badge.set_id == "subscriber" {
+                            let subscriber_badge = channel_badges
+                                .iter()
+                                .flatten()
+                                .find(|badge| badge.set_id == "subscriber")
+                                .expect("Should have subscriber badge if we made it here");
+                            subscriber_badge
+                                .versions
+                                .iter()
+                                .find(|version| version.id == my_badge.version)
+                                .expect("Should have a matching version")
+                        } else {
+                            global_badge
+                                .versions
+                                .iter()
+                                .find(|version| version.id == my_badge.version)
+                                .expect("Should have a matching version")
+                        };
+                        Badge {
+                            name: global_badge.set_id.clone(),
+                            version: badge_version.id.clone(),
+                            icon_url: badge_version.image_url_1x.clone(),
+                        }
+                    })
+                    .collect();
 
-                    let emotes: Vec<Emote> = msg
-                        .emotes
-                        .iter()
-                        .map(|message_emote| {
-                            let format = if let Some(emote) =
-                                all_emotes.iter().find(|emote| emote.id == message_emote.id)
-                            {
-                                emote
-                                    .format
-                                    .iter()
-                                    .find(|format| *format == "animated")
-                                    .unwrap_or(&String::from("static"))
-                                    .to_owned()
-                            } else {
-                                "static".to_owned()
-                            };
-                            Emote {
-                                id: message_emote.id.clone(),
-                                char_range: (
-                                    message_emote.char_range.start,
-                                    message_emote.char_range.end,
-                                ),
-                                code: message_emote.code.clone(),
-                                url_template: emote_template.clone(),
-                                format,
-                            }
-                        })
-                        .collect();
+                let emotes: Vec<Emote> = msg
+                    .emotes
+                    .iter()
+                    .map(|message_emote| {
+                        /*
+                        let format = if let Some(emote) =
+                            all_emotes.iter().find(|emote| emote.id == message_emote.id)
+                        {
+                            emote
+                                .format
+                                .iter()
+                                .find(|format| *format == "animated")
+                                .unwrap_or(&String::from("static"))
+                                .to_owned()
+                        } else {
+                            "static".to_owned()
+                        };
+                        */
+                        Emote {
+                            id: message_emote.id.clone(),
+                            char_range: (
+                                message_emote.char_range.start,
+                                message_emote.char_range.end,
+                            ),
+                            code: message_emote.code.clone(),
+                            url_template: emote_template.clone(),
+                            // format,
+                        }
+                    })
+                    .collect();
 
-                    let message = RabbitMessage {
-                        message: msg.message_text,
-                        sender: msg.sender.name,
-                        color: msg.name_color.map(|c| c.to_string()),
-                        badges: mapped_global_badges,
-                        emotes,
-                    };
-                    let message = serde_json::to_string::<RabbitMessage>(&message)
-                        .unwrap()
-                        .into_bytes();
+                let message = RabbitMessage {
+                    message: msg.message_text,
+                    sender: msg.sender.name,
+                    color: msg.name_color.map(|c| c.to_string()),
+                    badges: mapped_global_badges,
+                    emotes,
+                };
+                let message = serde_json::to_string::<RabbitMessage>(&message)
+                    .unwrap()
+                    .into_bytes();
 
-                    channel_clone
-                        .basic_publish(
-                            BasicProperties::default(),
-                            message,
-                            BasicPublishArguments::new("", &queue_name),
-                        )
-                        .await
-                        .unwrap();
-                }
-                _ => {}
+                channel_clone
+                    .basic_publish(
+                        BasicProperties::default(),
+                        message,
+                        BasicPublishArguments::new("", &queue_name),
+                    )
+                    .await
+                    .unwrap();
             }
         }
     });
