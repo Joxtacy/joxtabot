@@ -11,7 +11,7 @@ const replaceEmotes = (message: string, emotes: Emote[]) => {
 		const code = emote.id;
 		const url = emote.urlTemplate
 			.replace("{{id}}", emote.id)
-			.replace("{{format}}", emote.format)
+			.replace("{{format}}", "default")
 			.replace("{{theme_mode}}", "dark")
 			.replace("{{scale}}", "1.0");
 		const firstPart = modMsg.slice(0, start);

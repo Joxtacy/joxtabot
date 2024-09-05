@@ -26,5 +26,4 @@ export interface Emote {
 	code: string;
 	charRange: number[];
 	urlTemplate: string;
-	format: string;
 }
